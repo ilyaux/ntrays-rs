@@ -1,0 +1,16 @@
+[package]
+name = "ntrays"
+description = "NtRays Hex-Rays plugin for Windows kernel decompilation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+build = "build.rs"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+ntrays-core = { path = "../core" }
+
+[build-dependencies]
+cc = "1"

@@ -1,0 +1,10 @@
+[package]
+name = "ntrays-core"
+description = "IDA-independent rules and tables for the NtRays Hex-Rays plugin"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# 0.40 rather than the 2-day-old 0.41; PE parsing only.
+object = { version = "0.40", default-features = false, features = ["read_core", "pe", "std"] }

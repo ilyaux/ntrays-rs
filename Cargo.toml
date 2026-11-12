@@ -1,0 +1,10 @@
+[workspace]
+resolver = "3"
+members = ["core", "plugin"]
+# `cargo test` works without the IDA SDK; build the plugin with `-p ntrays` and IDASDK set.
+default-members = ["core"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "BSD-3-Clause"
