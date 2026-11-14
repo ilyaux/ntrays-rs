@@ -16,13 +16,15 @@ The tested analysis target is Windows x64 PE code, including the selected kernel
 
 ## Install a package
 
-Obtain the ZIP for your exact IDA version from a published release or a completed build-workflow run, or create it with the [release build script](build.md#release-packages). The package names are `ntrays-ida93-windows-x64.zip`, `ntrays-ida94-windows-x64.zip`, and `ntrays-ida95-windows-x64.zip`; each has an adjacent `.zip.sha256` checksum. Workflow configuration alone does not mean a release is already available.
+Download [v0.2.0 Preview](https://github.com/ilyaux/ntrays-rs/releases/tag/v0.2.0) for your exact IDA version, or create packages with the [release build script](build.md#release-packages). The package names are `ntrays-ida93-windows-x64.zip`, `ntrays-ida94-windows-x64.zip`, and `ntrays-ida95-windows-x64.zip`; each has an adjacent `.zip.sha256` checksum. Compare the ZIP's `Get-FileHash -Algorithm SHA256` result with that checksum before installing.
 
 1. Close IDA.
 2. Extract the matching Windows x64 ZIP and retain its manifest and notices.
 3. Copy its `ntrays.dll` to `%APPDATA%\Hex-Rays\IDA Pro\plugins`. Create the directory if needed. IDA's installation `plugins` directory is another supported location.
 4. Keep older Rust and original NtRays DLLs outside all IDA plugin search paths, so only the selected version loads.
 5. Reopen IDA and the database, then decompile a function. Check the Output window for initialization or internal-error messages.
+
+Press **Alt+F8** (or **Edit → Plugins → NtRays**) for [per-database settings](settings.md). In pseudocode, use **Set Windows version** to select an explicit syscall snapshot or import DLL stubs, and **Set syscall API** on a recognized syscall call to override its API. See [maps and presets](syscalls.md).
 
 Back up an IDB before first use. Some transformations create segments, adjust recognized types, or apply reversible patches; [features and limits](features.md#database-changes) explains these changes.
 
@@ -31,6 +33,8 @@ Back up an IDB before first use. Some transformations create segments, adjust re
 Close IDA before replacing or removing the DLL. To uninstall, remove `ntrays.dll` from its plugin directory. Removing the DLL does not revert changes already saved in an IDB. Revert RSB patches through IDA's patch interface, or return to your database backup when you need the original analysis state.
 
 The Rust plugin has its own per-IDB syscall storage. Moving from original NtRays may require [explicit legacy migration](migration.md); loading the new DLL does not prove which original syscall table an IDB used.
+
+When upgrading from v0.1.0, existing syscall maps remain in the IDB and settings use defaults until saved. The new instruction decoder does not rewrite already analyzed code automatically: reanalyze an affected function and refresh pseudocode to replace a previous CLAC/unknown decode. Keep NtRays installed while working with its custom instruction types. See [decoder extensions](decoder.md) for supported encodings and fallback behavior.
 
 ## If the plugin does not load
 

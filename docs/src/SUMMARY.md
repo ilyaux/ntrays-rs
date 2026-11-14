@@ -5,8 +5,11 @@
 # Getting started
 
 - [Installation and compatibility](installation.md)
+- [Settings and controls](settings.md)
 - [Build from source](build.md)
 - [Features and limits](features.md)
+- [Instruction decoder extensions](decoder.md)
+- [Windows constant formatting](literals.md)
 
 # Syscalls
 

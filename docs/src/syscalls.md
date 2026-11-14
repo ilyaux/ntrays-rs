@@ -15,9 +15,18 @@ The core API exposes four stable x64 snapshot IDs:
 
 Use the stable ID explicitly. The host OS or build family alone does not select a map. Windows 11 24H2 and Server 2025 both use family 26100 here but have different GUI tables, and servicing revisions can differ from a release snapshot.
 
-For Rust callers, `ntrays_core::syscall_presets::find(id)` returns a preset; its `map()` returns an independently owned name-based map. This is a core API, not an implemented plugin selection dialog.
+For Rust callers, `ntrays_core::syscall_presets::find(id)` returns a preset; its `map()` returns an independently owned name-based map.
 
 The captured entry is an observed stub map, not a marketing-release preset or complete SSDT. Exports without a syscall stub are absent. The checked-in notice records the exact fixture versions, hashes, parser hash, source commit, and attribution. Do not substitute unrelated DLLs and keep the same captured label.
+
+## Select a map or API in IDA
+
+These actions are included in **v0.2.0 Preview**; the original `v0.1.0` preview does not include them. Enable the syscall component in [settings](settings.md).
+
+- Right-click in pseudocode and choose **Set Windows version...** to select a named snapshot, disable the number-to-name map, or import an exact local ntdll/win32u DLL. Snapshot selection requires confirmation because servicing revisions can differ. Importing the second DLL replaces its own NT or GUI number space and preserves the other space.
+- Right-click the syscall helper call and choose **Set syscall API...** to assign a typed API at that instruction. **Automatic** clears the explicit API override and restores resolution from the available number/map/function information. The action is offered only for a selected syscall instruction, including `int 2Eh`.
+
+Accepting a selection updates the current database and refreshes decompilation. Canceling the chooser, file picker or confirmation makes no change. Save the IDB to retain the result. Unsupported or damaged map/override records are protected; the UI reports a failed change instead of replacing unknown data.
 
 ## Validate the committed data
 

@@ -52,7 +52,7 @@ rustup default 1.93.1
 
 Repeat for 9.4/9.5 with the corresponding SDK. Existing package, archive, or log paths are rejected; choose a fresh output directory for another build of the same target.
 
-The script builds in a private temporary target directory, checks the `PLUGIN` export, `ida.dll` import and static MSVC runtime, then packages the DLL with the license, third-party notices, installation notes, PE checks, and a source/DLL hash manifest. It rejects changing source files and mismatched or modified SDK checkouts. Intermediate build files are removed after success or failure; packages and logs remain.
+The script builds in a private temporary target directory, checks the `PLUGIN` export, `ida.dll` import and static MSVC runtime, then packages the DLL with the license, third-party notices, installation notes, PE checks, and a versioned source/DLL hash manifest. It remaps Rust source paths and rejects a DLL containing the local profile, source, SDK or Cargo root. It also rejects changing source files and mismatched or modified SDK checkouts. Intermediate build files are removed after success or failure; packages and logs remain.
 
 These recorded inputs make the build inspectable. The MSVC tools and OS image can affect binary bytes, so the recipe does not promise identical DLL hashes across machines.
 
@@ -60,7 +60,7 @@ These recorded inputs make the build inspectable. The MSVC tools and OS image ca
 
 `.github/workflows/build.yml` builds the three targets on `windows-2022` for `main`, pull requests, manual runs, or a reusable-workflow call. Actions and SDK commits are pinned. The workflow validates committed syscall data offline, tests `core`, and uploads separate ZIP/checksum artifacts with 14-day retention. Local build logs are retained locally; they are excluded from uploaded artifacts and public release assets.
 
-`.github/workflows/release.yml` handles pushed `v*` tags. The tag must equal `v` plus the workspace version in `Cargo.toml`. It reuses the build matrix and verifies ZIP/DLL hashes, tagged source revision, and matching source manifests before publishing exactly three SDK ZIPs and their three `.zip.sha256` files. Version `v0.1.0` and versions with a prerelease suffix are published as prereleases, without becoming the latest release.
+`.github/workflows/release.yml` handles pushed `v*` tags. The tag must equal `v` plus the workspace version in `Cargo.toml`. It reuses the build matrix and verifies ZIP/DLL hashes, tagged source revision, and matching source manifests before publishing exactly three SDK ZIPs and their three `.zip.sha256` files. All `0.x` versions and versions with a prerelease suffix are published as prereleases, without becoming the latest stable release. Release notes include the matching version section from `CHANGELOG.md`; a missing section stops publication.
 
 Neither workflow runs the licensed IDA regression suite. A local build or workflow configuration does not demonstrate that GitHub Actions has run successfully or a release exists; inspect an actual run before making that claim.
 

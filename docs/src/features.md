@@ -21,11 +21,17 @@ Additional lifters cover VMFUNC, VMRESUME, VMCALL, RDPID, RDPKRU/WRPKRU, XSAVEC/
 
 VMCALL and ENCLU use opaque register-state helpers. They do not assume a Hyper-V ABI or an enclave application ABI. A helper name is not a promise to model every architectural state transition or SGX leaf.
 
-Unsupported operand forms return to Hex-Rays. In particular, FS/GS-prefixed forms that require a segment base are deliberately declined by the new address-based lifters. The tested GS-prefixed UMONITOR case remains assembly. See [validation results](validation.md) for what was actually exercised.
+The development checkout also adds [decoder extensions](decoder.md) and helpers for legacy FRED, LKGS, WRMSRNS and broadcast TLB instructions. LKGS uses native word-operand loading, including a tested GS-relative read.
+
+Unsupported operand forms return to Hex-Rays. FS/GS-prefixed forms that require a segment base are deliberately declined by selected address-only lifters. The tested GS-prefixed UMONITOR case remains assembly. See [validation results](validation.md) for what was actually exercised.
+
+## Windows constants
+
+The development checkout also formats typed NTSTATUS return/comparison constants and printable tags in recognized pool calls. See [Windows constant formatting](literals.md) for scope, explicit casts and preservation of user formats.
 
 ## Database changes
 
-The plugin can save named syscall maps and per-address overrides, add the KUSER segment, adjust recognized types, and patch RSB-stuffing gadgets. RSB changes are ordinary IDA patches visible and reversible in **Edit → Patch program**. Unloading or uninstalling the plugin does not automatically undo saved database changes.
+The plugin can save named syscall maps and per-address overrides, add the KUSER segment, import the Windows status enum, adjust recognized types, and patch RSB-stuffing gadgets. RSB changes are ordinary IDA patches visible and reversible in **Edit → Patch program**. Unloading or uninstalling the plugin does not automatically undo saved database changes.
 
 Keep a pristine analyzed IDB for comparisons and run validation on copies. [Legacy migration](migration.md) preserves original syscall nodes rather than deleting them.
 
@@ -33,4 +39,4 @@ Keep a pristine analyzed IDB for comparisons and run validation on copies. [Lega
 
 The runtime suite covers IDA 9.3 and specific Windows x64 fixtures. It does not establish compatibility with every IDA update, Windows servicing revision, operand encoding, or function order. IDA 9.4/9.5 currently have build validation only. AMD SVM instructions already handled by the tested IDA configuration are left to Hex-Rays rather than receiving redundant lifters.
 
-The plugin has no completed preset-selection UI. Available snapshot data is described in [maps and presets](syscalls.md); planned UI or new transformations should not be inferred from that data.
+**v0.2.0 Preview** includes [per-database settings](settings.md), [syscall selection actions](syscalls.md#select-a-map-or-api-in-ida), [Windows constant formatting](literals.md) and [decoder extensions](decoder.md). These additions are not present in the original `v0.1.0` preview. Further transformations are tracked in the roadmap.

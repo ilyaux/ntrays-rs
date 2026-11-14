@@ -1,6 +1,9 @@
 //! IDA-independent part of NtRays: everything here builds and tests without the IDA SDK.
 
 pub mod fold;
+pub mod decode;
+pub mod literals;
+pub mod settings;
 pub mod syscall;
 pub mod syscall_state;
 pub mod syscall_presets;

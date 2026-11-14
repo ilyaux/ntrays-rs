@@ -36,7 +36,7 @@ jobs:
           tag = os.environ['RELEASE_TAG']
           if tag != f'v{version}' or not re.fullmatch(r'v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?', tag):
               raise SystemExit(f'Tag {tag!r} must match Cargo workspace version v{version}')
-          prerelease = tag == 'v0.1.0' or '-' in version
+          prerelease = version.startswith('0.') or '-' in version
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
               output.write(f'prerelease={str(prerelease).lower()}\n')
           print(f'{tag}: prerelease={prerelease}')
@@ -54,6 +54,10 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Check out release notes
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
       - name: Download the three matrix artifacts
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
@@ -81,7 +85,7 @@ jobs:
                   if any(re.search(r'(^|/)build[^/]*\.log$', p, re.I) for p in package.namelist()):
                       raise SystemExit('Build logs must not be released')
                   manifest = json.loads(package.read('manifest.json').decode('utf-8-sig'))
-                  if manifest['source_revision'] != os.environ['GITHUB_SHA'] or manifest['ida'] != f'{sdk[0]}.{sdk[1]}':
+                  if manifest['version'] != os.environ['GITHUB_REF_NAME'].removeprefix('v') or manifest['source_revision'] != os.environ['GITHUB_SHA'] or manifest['ida'] != f'{sdk[0]}.{sdk[1]}':
                       raise SystemExit(f'Unexpected source revision or SDK: {archive.name}')
                   if hashlib.sha256(package.read('ntrays.dll')).hexdigest() != manifest['dll_sha256']:
                       raise SystemExit(f'DLL checksum mismatch: {archive.name}')
@@ -98,12 +102,27 @@ jobs:
           PRERELEASE: ${{ needs.version.outputs.prerelease }}
         run: |
           cat > "$RUNNER_TEMP/release-notes.md" <<'EOF'
+          ## Install
+
           Windows x64 packages for IDA Pro 9.3, 9.4 and 9.5. Install the one DLL matching your IDA version; the x64 Hex-Rays decompiler is required.
 
           Runtime regression validation covers licensed IDA/Hex-Rays 9.3. SDK 9.4 and 9.5 packages pass compilation and PE checks; runtime compatibility is not yet validated there. Hosted CI runs offline preset checks and core tests, then builds packages; it does not run IDA.
 
           Each ZIP includes installation instructions, a source/DLL manifest and license notices. The adjacent `.sha256` file verifies the ZIP download. See the README and CHANGELOG for features, validation details and limitations.
           EOF
+          python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+
+          version = os.environ['RELEASE_TAG'].removeprefix('v')
+          changelog = Path('CHANGELOG.md').read_text(encoding='utf-8')
+          section = re.search(r'^## ' + re.escape(version) + r' — [^\n]+\n(.*?)(?=^## |\Z)', changelog, re.M | re.S)
+          if section is None:
+              raise SystemExit(f'Missing changelog section for {version}')
+          notes = Path(os.environ['RUNNER_TEMP']) / 'release-notes.md'
+          changes = section[1].strip().replace('](docs/src/validation.md)', f"](https://github.com/{os.environ['GH_REPO']}/blob/{os.environ['RELEASE_TAG']}/docs/src/validation.md)")
+          notes.write_text('## Changes\n\n' + changes + '\n\n' + notes.read_text(), encoding='utf-8')
+          PY
           flags=()
           if [[ "$PRERELEASE" == true ]]; then
             flags+=(--prerelease --latest=false)

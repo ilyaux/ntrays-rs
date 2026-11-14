@@ -15,6 +15,7 @@ __pycache__/
 *.exe
 *.zip
 *.log
+*.dmp
 
 # Local AI assistant instructions, settings and working notes
 AGENTS.md

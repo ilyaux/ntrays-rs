@@ -94,7 +94,53 @@ The default MSVC Build Tools path can be changed with `--vcvars`. Omit `--plugin
 
 `tools/test_syscall_state.py --ida <IDA-dir> --plugin <ntrays.dll> --base <ntdll-none.i64> --output <new-dir>` checks IDB export maps, legacy migration, reopening/rebasing, and same-process IDB isolation. Its additional fixture options are listed by `--help`.
 
+`tools/test_syscall_ui.py` exercises the production menu setters against copied databases. It checks read-only chooser data, Automatic and named overrides, presets, map disabling, two-DLL number-space merging, rebase, and refusal to overwrite corrupt/future/unconfirmed legacy state:
+
+```powershell
+py -3.11 -I tools/test_syscall_ui.py `
+  --ida 'C:\Program Files\IDA Professional 9.3' `
+  --plugin 'C:\build\ntrays.dll' --base 'C:\fixtures\ntdll-none.i64' `
+  --ntdll 'C:\fixtures\ntdll.dll' --win32u 'C:\fixtures\win32u.dll' `
+  --output "$env:USERPROFILE\ntrays-build\syscall-ui-new"
+```
+
+`tools/test_settings.py` checks real plugmod settings, normal-cache refresh, persistence without destructor writes, protected records, log levels and IDB isolation. Include `--kernel-base` for the Hvl/optimizer cache and warm-cache rebase check:
+
+```powershell
+py -3.11 -I tools/test_settings.py `
+  --ida 'C:\Program Files\IDA Professional 9.3' `
+  --plugin 'C:\build\ntrays.dll' --base 'C:\fixtures\ntdll-none.i64' `
+  --kernel-base "$env:USERPROFILE\ntrays-build\golden\base.i64" `
+  --output "$env:USERPROFILE\ntrays-build\settings-new"
+```
+
+These scripts test production behavior under idalib. Separately check the native GUI: Alt+F8, Cancel/OK, the popup on a call and a non-call expression, API selection/refresh, preset confirmation/decline, and the DLL file picker. A native GUI crash cannot be ruled out by successful setter tests alone.
+
 `tools/test_original_lifecycle.py --ida <IDA-dir> --base <base.i64> --plugin <original-NtRays64.dll> --output <new-dir>` opens a copied IDB in two separate processes and saves between openings. It records original NtRays's `$ ntrays` slot 0, plugin actions, and observed decompilation behavior. This tests saved idalib closure, not an interactive GUI shutdown.
+
+## Windows literal formatting
+
+`tools/test_literals.py` builds a synthetic PE with MSVC and decompiles it in two independent idalib processes:
+
+```powershell
+py -3.11 -I tools/test_literals.py `
+  --ida 'C:\Program Files\IDA Professional 9.3' `
+  --plugin 'C:\build\ntrays.dll' `
+  --output "$env:USERPROFILE\ntrays-build\literals-new"
+```
+
+This check requires IDA and MSVC; `--vcvars` can select another MSVC environment script. Fifteen functions cover NTSTATUS returns/comparisons, pool tags, unknown values/call targets, wrong argument positions and explicit user number formats. The test compares ctree operations, arithmetic types and values before/after formatting, normalizing only the explicit enum-to-original-width casts. It also checks repeated output, master/component switches with the normal cache, unchanged saved number formats, and preservation of a conflicting local `MACRO_STATUS` type. Privileged or generated fixture code is not executed.
+
+## Instruction decoder fixture
+
+```powershell
+py -3.11 -I tools/test_decoder.py `
+  --ida 'C:\Program Files\IDA Professional 9.3' `
+  --plugin 'C:\build\ntrays.dll' `
+  --output "$env:USERPROFILE\ntrays-build\decoder-new"
+```
+
+This requires IDA/Hex-Rays and MSVC. The runner loads the plugin before autoanalysis, assembles raw opcode bytes into a synthetic PE and decompiles 23 functions twice. It checks exact helper input widths/values, preserved GPRs/flags, FRED no-return flow and frame stores, ordinary CLAC passthrough, LKGS word loads/addressing, INVLPGB/TLBSYNC ordering, normal-cache toggles and zero patched-byte records. Twelve LKGS operand cases are compared with native `MOV r16,r/m16` decoding; the comparison allows equivalent displacement display widths. No fixture instruction is executed.
 
 ## Checks without IDA
 

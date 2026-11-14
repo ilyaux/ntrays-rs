@@ -50,6 +50,8 @@ jobs:
           rustup default 1.93.1
       - name: Check generated syscall presets (offline)
         run: python tools/gen_syscall_presets.py --check --self-test
+      - name: Test regression comparator (offline)
+        run: python -I -m unittest discover -s tools -p test_regression.py -v
       - name: Test core
         env:
           CARGO_TARGET_DIR: ${{ runner.temp }}/core-target-${{ matrix.ida }}
