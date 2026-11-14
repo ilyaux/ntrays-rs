@@ -17,7 +17,7 @@ Runtime checks used IDA **9.3.260421** and Hex-Rays **9.3.0.260421** on Windows 
 | Native IDA GUI | Listed popup, chooser, preset, import and settings checks passed | IDA 9.3; details below |
 | SDK build/package targets | 9.3, 9.4, 9.5 passed local build checks | 9.4/9.5 runtime not tested |
 
-These final checks use the IDA 9.3 DLL with SHA-256 `89a674572488e67f6b7cde01e9da89f952c903b3d8bc6c30f9e4e1041058aee2`. Package manifests fingerprint the compiled source files, including the settings and menu changes in the development checkout. The public `v0.1.0` preview does not contain these controls.
+The settings/menu integration checks used the IDA 9.3 DLL with SHA-256 `89a674572488e67f6b7cde01e9da89f952c903b3d8bc6c30f9e4e1041058aee2`. Package manifests fingerprint the compiled source files, including the settings and menu changes later included in v0.2.0. The original `v0.1.0` preview does not contain these controls.
 
 The kernel reference previously required review for four expected XSTATE changes; those changes were examined and accepted. The final four-mode run matches that reviewed reference. The older ntdll reference also reports four differences: typed `int 2e` and `syscall` branches now fold to the same helper. A separate `v0.1.0` control produced exactly the same four outputs as this candidate. The old raw comparison is retained as FAIL, while the final run matches the subsequently reviewed ntdll reference. REVIEW and an expected old-reference FAIL are not themselves test passes.
 
@@ -31,7 +31,7 @@ The native checks cover these interactions. Remaining preset rows, Automatic, in
 
 ## Windows literal formatting (#409)
 
-The subsequent development DLL for IDA 9.3 has SHA-256 `14015e23942fe0f5136e5cee2c50b74ec270de769f07159958718e7eaad94da7`. All three SDK targets compiled and passed PE checks; 27 compiled source files matched each package manifest.
+The subsequent literal-formatting DLL for IDA 9.3 has SHA-256 `14015e23942fe0f5136e5cee2c50b74ec270de769f07159958718e7eaad94da7`. All three SDK targets compiled and passed PE checks; 27 compiled source files matched each package manifest.
 
 - Fifteen synthetic functions passed in two fresh processes with identical output. Ctree checks preserve values, operations and arithmetic types through the explicit enum-to-original-width casts. Unknown values, ordinary integers, wrong call arguments, explicit user formats, normal-cache toggles, alias ordering and a conflicting local type were checked.
 - The final two fresh Rust kernel passes decompiled 63/63 functions, with zero errors and repeat differences. The no-plugin/original controls were retained from the preceding four-process run after verifying identical input context; they were not rerun for the final alias-selection fix.
@@ -43,7 +43,7 @@ No Computer Use or native GUI checks were run for this feature. IDA 9.4/9.5 have
 
 ## Decoder extensions (#405)
 
-The next development DLL, SHA-256 `f52643199302a6208b735a1114d213d130a26f07ba07c0e8c13c01e0e7999d7e` for IDA 9.3, passed:
+The integrated pre-release DLL, SHA-256 `f52643199302a6208b735a1114d213d130a26f07ba07c0e8c13c01e0e7999d7e` for IDA 9.3, passed:
 
 - 23 synthetic instruction functions in two fresh processes, with identical results; 12 LKGS addressing comparisons against native MOV operand decoding and one segment-boundary case.
 - Exact helper input widths/values, preserved GPRs/flags, FRED no-return flow and retained frame stores, GS/stack/relative word reads, INVLPGB/TLBSYNC ordering, ordinary CLAC passthrough, and normal-cache master/component toggles.

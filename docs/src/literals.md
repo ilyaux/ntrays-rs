@@ -1,6 +1,6 @@
 # Windows constant formatting
 
-This feature is in the development checkout; the original `v0.1.0` preview does not include it. It belongs to **Type/ABI fixes and Windows constant formatting** in the [settings dialog](settings.md). The master switch and that component both gate it.
+This feature is included in **v0.2.0 Preview**; the original `v0.1.0` preview does not include it. It belongs to **Type/ABI fixes and Windows constant formatting** in the [settings dialog](settings.md). The master switch and that component both gate it.
 
 ## NTSTATUS
 

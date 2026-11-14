@@ -60,7 +60,7 @@ These recorded inputs make the build inspectable. The MSVC tools and OS image ca
 
 `.github/workflows/build.yml` builds the three targets on `windows-2022` for `main`, pull requests, manual runs, or a reusable-workflow call. Actions and SDK commits are pinned. The workflow validates committed syscall data offline, tests `core`, and uploads separate ZIP/checksum artifacts with 14-day retention. Local build logs are retained locally; they are excluded from uploaded artifacts and public release assets.
 
-`.github/workflows/release.yml` handles pushed `v*` tags. The tag must equal `v` plus the workspace version in `Cargo.toml`. It reuses the build matrix and verifies ZIP/DLL hashes, tagged source revision, and matching source manifests before publishing exactly three SDK ZIPs and their three `.zip.sha256` files. Version `v0.1.0` and versions with a prerelease suffix are published as prereleases, without becoming the latest release.
+`.github/workflows/release.yml` handles pushed `v*` tags. The tag must equal `v` plus the workspace version in `Cargo.toml`. It reuses the build matrix and verifies ZIP/DLL hashes, tagged source revision, and matching source manifests before publishing exactly three SDK ZIPs and their three `.zip.sha256` files. All `0.x` versions and versions with a prerelease suffix are published as prereleases, without becoming the latest stable release. Release notes include the matching version section from `CHANGELOG.md`; a missing section stops publication.
 
 Neither workflow runs the licensed IDA regression suite. A local build or workflow configuration does not demonstrate that GitHub Actions has run successfully or a release exists; inspect an actual run before making that claim.
 

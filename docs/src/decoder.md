@@ -1,6 +1,6 @@
 # Instruction decoder extensions
 
-These additions are in the development checkout, after `v0.1.0`. They extend instruction decoding in x64 segments of AMD64 PE databases. No instruction bytes are replaced or patched.
+These additions are included in **v0.2.0 Preview**. They extend instruction decoding in x64 segments of AMD64 PE databases. No instruction bytes are replaced or patched.
 
 On the tested IDA 9.3.260421 installation, both FRED return encodings decoded as `clac`; the other forms below were unknown. NtRays provides their mnemonics, operands, flow analysis and microcode helpers.
 

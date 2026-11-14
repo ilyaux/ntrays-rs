@@ -35,4 +35,4 @@ Add chapters to `docs/src/SUMMARY.md` and use relative links to other chapters. 
 
 `.github/workflows/docs.yml` checks documentation on pull requests and builds/deploys on documentation changes to `main` or a manual run on `main`. It downloads a checksum-verified mdBook 0.4.52 binary and uses commit-pinned official GitHub Pages actions. It does not need IDA or Rust compilation.
 
-The planned site is `https://ilyaux.github.io/ntrays-rs/`. Repository maintainers must enable **Settings → Pages → Build and deployment → Source: GitHub Actions** and allow the `github-pages` environment before the first deployment. The workflow file and a local build do not establish that publication has happened.
+The published site is [ilyaux.github.io/ntrays-rs](https://ilyaux.github.io/ntrays-rs/). Repository maintainers must enable **Settings → Pages → Build and deployment → Source: GitHub Actions** and allow the `github-pages` environment before the first deployment. The workflow file and a local build do not establish that publication has happened.

@@ -21,7 +21,7 @@ The captured entry is an observed stub map, not a marketing-release preset or co
 
 ## Select a map or API in IDA
 
-These actions are available in the development checkout; the original `v0.1.0` preview does not include them. Enable the syscall component in [settings](settings.md).
+These actions are included in **v0.2.0 Preview**; the original `v0.1.0` preview does not include them. Enable the syscall component in [settings](settings.md).
 
 - Right-click in pseudocode and choose **Set Windows version...** to select a named snapshot, disable the number-to-name map, or import an exact local ntdll/win32u DLL. Snapshot selection requires confirmation because servicing revisions can differ. Importing the second DLL replaces its own NT or GUI number space and preserves the other space.
 - Right-click the syscall helper call and choose **Set syscall API...** to assign a typed API at that instruction. **Automatic** clears the explicit API override and restores resolution from the available number/map/function information. The action is offered only for a selected syscall instruction, including `int 2Eh`.

@@ -93,7 +93,9 @@ try {
     Copy-Item -LiteralPath (Join-Path $repo 'data/syscall-presets-NOTICE.txt') -Destination $notices
     $metadataJson = & cargo metadata --locked --format-version 1
     if ($LASTEXITCODE -ne 0) { throw 'Cannot read dependency notices.' }
-    foreach ($dependency in ($metadataJson | ConvertFrom-Json).packages | Where-Object source) {
+    $metadata = $metadataJson | ConvertFrom-Json
+    $version = ($metadata.packages | Where-Object name -EQ 'ntrays').version
+    foreach ($dependency in $metadata.packages | Where-Object source) {
         $licenseFiles = @(Get-ChildItem -LiteralPath (Split-Path -Parent $dependency.manifest_path) -File | Where-Object Name -Match '^(LICEN[CS]E|COPYING|COPYRIGHT|UNLICENSE|NOTICE)')
         if (-not $licenseFiles) { throw "Missing license notice for $($dependency.name)." }
         foreach ($notice in $licenseFiles) {
@@ -110,6 +112,7 @@ try {
     $revision = & git -C $repo rev-parse HEAD
     if ($LASTEXITCODE -ne 0) { throw 'Cannot read source revision.' }
     $manifest = [ordered]@{
+        version = $version
         ida = $IdaVersion; target = 'x86_64-pc-windows-msvc'; rust = $rustVersion; sdk_commit = $sdkCommit
         source_revision = $revision; source_files = $sourceHashes; build_script_sha256 = $recipeHash
         dll_sha256 = (Get-FileHash -LiteralPath (Join-Path $package 'ntrays.dll') -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -117,7 +120,7 @@ try {
     }
     $manifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $package 'manifest.json') -Encoding utf8
     @"
-NtRays for IDA Pro $IdaVersion on Windows x64
+NtRays $version for IDA Pro $IdaVersion on Windows x64
 
 Close IDA, then copy ntrays.dll to %APPDATA%\Hex-Rays\IDA Pro\plugins.
 Install one matching NtRays DLL; keep older/upstream DLL copies outside IDA's plugin search paths.

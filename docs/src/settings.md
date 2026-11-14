@@ -1,6 +1,6 @@
 # Settings and controls
 
-These controls are in the development checkout; the original `v0.1.0` preview does not include them.
+These controls are included in **v0.2.0 Preview**; the original `v0.1.0` preview does not include them.
 
 Open **Edit → Plugins → NtRays** or press **Alt+F8**. Settings belong to the current IDA database. Closing the dialog with **Cancel** keeps them unchanged; unloading the plugin does not save a disabled state.
 
