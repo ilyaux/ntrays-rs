@@ -63,10 +63,14 @@ $build = Join-Path $output ('.build-ida' + $suffix + '-' + [guid]::NewGuid().ToS
 New-Item -ItemType Directory -Path $build | Out-Null
 $oldSdk = $env:IDASDK
 $oldTarget = $env:CARGO_TARGET_DIR
+$oldEncodedFlags = $env:CARGO_ENCODED_RUSTFLAGS
+$cargoRoot = if ($env:CARGO_HOME) { [IO.Path]::GetFullPath($env:CARGO_HOME) } else { Join-Path $env:USERPROFILE '.cargo' }
 Push-Location -LiteralPath $repo
 try {
     $env:IDASDK = $sdk
     $env:CARGO_TARGET_DIR = $build
+    # Release artifacts retain useful relative panic locations without publishing local paths.
+    $env:CARGO_ENCODED_RUSTFLAGS = @('-C', 'target-feature=+crt-static', "--remap-path-prefix=$repo=.", "--remap-path-prefix=$cargoRoot=cargo") -join [char]31
     & cargo build --release --locked -p ntrays --target x86_64-pc-windows-msvc 2>&1 | Tee-Object -FilePath $buildLog
     if ($LASTEXITCODE -ne 0) { throw "Build failed; see $buildLog." }
     $afterHashes = Get-SourceHashes
@@ -74,6 +78,15 @@ try {
         throw 'Source files changed during the build. Run again from a stable checkout.'
     }
     $dll = Join-Path $build 'x86_64-pc-windows-msvc/release/ntrays.dll'
+    $binaryBytes = [IO.File]::ReadAllBytes($dll)
+    $binaryTexts = @([Text.Encoding]::UTF8.GetString($binaryBytes), [Text.Encoding]::Unicode.GetString($binaryBytes))
+    foreach ($privateRoot in @($repo, $sdk, $cargoRoot, $env:USERPROFILE)) {
+        foreach ($prefix in @($privateRoot, $privateRoot.Replace('\', '/'))) {
+            foreach ($binaryText in $binaryTexts) {
+                if ($binaryText.Contains($prefix, [StringComparison]::OrdinalIgnoreCase)) { throw 'DLL contains a local build path.' }
+            }
+        }
+    }
     $peCheck = @(& $dumpbin /EXPORTS /DEPENDENTS $dll | ForEach-Object {
         if ($_ -match '^Dump of file ') { 'Dump of file ntrays.dll' } else { $_ }
     })
@@ -137,6 +150,7 @@ Third-party notices for the linked SDK/Rust code are in licenses/.
 finally {
     $env:IDASDK = $oldSdk
     $env:CARGO_TARGET_DIR = $oldTarget
+    $env:CARGO_ENCODED_RUSTFLAGS = $oldEncodedFlags
     Pop-Location
     # This directory was created by this invocation. Keep package/logs, remove only its regular build files.
     $resolvedBuild = (Resolve-Path -LiteralPath $build).ProviderPath

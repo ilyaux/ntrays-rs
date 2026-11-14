@@ -52,7 +52,7 @@ rustup default 1.93.1
 
 Repeat for 9.4/9.5 with the corresponding SDK. Existing package, archive, or log paths are rejected; choose a fresh output directory for another build of the same target.
 
-The script builds in a private temporary target directory, checks the `PLUGIN` export, `ida.dll` import and static MSVC runtime, then packages the DLL with the license, third-party notices, installation notes, PE checks, and a source/DLL hash manifest. It rejects changing source files and mismatched or modified SDK checkouts. Intermediate build files are removed after success or failure; packages and logs remain.
+The script builds in a private temporary target directory, checks the `PLUGIN` export, `ida.dll` import and static MSVC runtime, then packages the DLL with the license, third-party notices, installation notes, PE checks, and a versioned source/DLL hash manifest. It remaps Rust source paths and rejects a DLL containing the local profile, source, SDK or Cargo root. It also rejects changing source files and mismatched or modified SDK checkouts. Intermediate build files are removed after success or failure; packages and logs remain.
 
 These recorded inputs make the build inspectable. The MSVC tools and OS image can affect binary bytes, so the recipe does not promise identical DLL hashes across machines.
 
