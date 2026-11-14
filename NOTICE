@@ -1,0 +1,20 @@
+NtRays Rust port
+===============
+
+Based on NtRays by Can Bölük, https://github.com/can1357/NtRays
+Original code Copyright (c) 2021 Can Bölük.
+Rust port Copyright (c) 2026 IK.
+The project code is distributed under BSD-3-Clause; see LICENSE.
+
+Selected Windows syscall identifiers and numeric assignments include factual
+interoperability data from Mateusz "j00ru" Jurczyk's Windows System Call Tables
+and from explicitly fingerprinted Windows export stubs. These data have separate
+provenance and are not assigned the project's BSD license by this notice.
+See data/syscall-presets-NOTICE.txt for source commits, hashes and scope.
+
+Release packages include notices for the IDA SDK, Rust libraries and build/runtime
+dependencies. Neither IDA/Hex-Rays software nor Microsoft fixture binaries or IDA
+databases are included in this source repository.
+
+IDA and Hex-Rays are trademarks of Hex-Rays SA. Windows is a trademark of
+Microsoft Corporation. This independent project is not endorsed by these vendors.

@@ -1,0 +1,59 @@
+The selected x64 syscall identifiers and numeric assignments are factual
+interoperability data extracted from Mateusz "j00ru" Jurczyk's Windows System
+Call Tables, https://github.com/j00ru/windows-syscalls .
+
+Pinned commit: 8a6806ac9148633e8afbbdb42e6002930b002741
+Selected source group: Windows 11 and Server
+Selected releases: 11 24H2, 11 25H2, Server 2025
+
+These are pinned release snapshots, not maps for every servicing revision.
+The local 10.0.26100.9711 fixtures differ from the 24H2 source snapshot at
+207 NT IDs and 1273 GUI IDs (source counts 489/1477; observed 489/1498).
+Never auto-select one of these snapshots using only the build family.
+
+Only the selected API-name/number pairs are retained, not upstream programs,
+HTML, prose, or complete historical JSON files. The source repository did not
+declare a license at this commit (GitHub license metadata was null). This
+notice does not assign a BSD license or make a public-domain claim for the
+source data. Attribution and pinned provenance are preserved explicitly.
+
+Source files and SHA-256:
+x64/json/nt-per-system.json
+  a1998f5973cdff5fd2a28474e413a5074d66f65ab4555efc4b1911bf9f00e6ff
+x64/json/win32k-per-system.json
+  be333b3fc581f95463750f5a2b354c99ad4165198bcf7f0811e08cca33959043
+
+The release build families (24H2: 26100, 25H2: 26200, Server 2025: 26100)
+are documented by Microsoft:
+https://learn.microsoft.com/en-us/windows/release-health/windows11-release-information
+https://learn.microsoft.com/en-us/windows-server/get-started/windows-server-release-info
+They do not identify a specific servicing revision. Presets require an explicit
+release ID; the host OS or build family alone is not used to choose a map.
+
+A separate preset, captured-26100.9711-x64, contains the observed export-stub
+maps from two exact user-supplied files, both version 10.0.26100.9711:
+ntdll.dll SHA-256:
+  651ac9041af8e6b5ebd331d53163244c0a27d36d1433f0f15cac1f28c5f2e82c
+win32u.dll SHA-256:
+  d46a695db805e808efa63d1095ce3e1b6be9c0155dad405d444530efc1ed0362
+This entry has no inferred Windows marketing release or SKU. It is a captured
+stub map, not a complete SSDT: exports implemented without a syscall stub are
+not captured. The capture reuses ntrays_core::syscall::read_syscall_map through
+core/examples/capture_syscall_stubs.rs; IDs are not manually reassigned.
+Parser source SHA-256 (core/src/syscall.rs, line endings normalized to LF):
+  7343f25d1d80e5751e36e8046e299da88313f5a4d5156a05d945ff38236ed53c
+
+Offline regeneration and validation:
+  python -I tools/gen_syscall_presets.py --self-test --check
+Re-extract the same pinned factual pairs (network required):
+  python -I tools/gen_syscall_presets.py --refresh
+Re-capture the same exact fixtures on Windows (requires Rust, no IDA):
+  python -I tools/gen_syscall_presets.py --capture <ntdll.dll> <win32u.dll>
+The capture verifies both SHA-256 values, both file versions and the parser
+source hash before replacing the captured tables. Inputs changing during the
+capture are rejected. --refresh preserves the separately captured tables.
+
+Compare explicit fixture DLLs without IDA or network access:
+  cargo run -p ntrays-core --example check_syscall_preset -- <preset-id> <ntdll.dll> <win32u.dll>
+Exit 0 means exact equality, 1 reports table differences, and 2 is invalid input.
+Do not relabel or auto-select a preset to make servicing-revision differences disappear.

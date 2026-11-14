@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="440" viewBox="0 0 1200 440" role="img" aria-labelledby="title desc">
+  <title id="title">NtRays — Windows internals, readable in Hex-Rays</title>
+  <desc id="desc">A Rust port of NtRays for IDA Pro 9.3, 9.4 and 9.5 on Windows x64. Instruction lifters, typed syscall helpers and kernel simplifications. Preview release.</desc>
+  <style>
+    svg{--bg:#fff;--ink:#15171b;--muted:#606773;--rule:#e2e5e9;--accent:#b44a24;--blue:#1d4ed8;--wash:#f6f7f9}
+    @media(prefers-color-scheme:dark){svg{--bg:#0d1117;--ink:#e6edf3;--muted:#959eab;--rule:#30363d;--accent:#f2a17e;--blue:#79a6ff;--wash:#161b22}}
+    text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;fill:var(--ink)}
+    .mono{font-family:ui-monospace,"SFMono-Regular",Consolas,monospace}.muted{fill:var(--muted)}.accent{fill:var(--accent)}.blue{fill:var(--blue)}.rule{stroke:var(--rule);fill:none}
+  </style>
+  <rect width="1200" height="440" fill="var(--bg)"/>
+  <path class="rule" d="M.5.5H1199.5V439.5H.5Z"/>
+  <g fill="none" stroke="var(--accent)" stroke-width="2">
+    <path d="M49 62h18m-18 0 23-15M49 62l23 15M49 62h37"/>
+    <circle cx="46" cy="62" r="4" fill="var(--accent)"/>
+  </g>
+  <text x="101" y="68" font-size="13" letter-spacing="2.4" class="mono muted">WINDOWS INTERNALS / RUST</text>
+  <text x="46" y="160" font-size="76" font-weight="650" letter-spacing="-3">NtRays</text>
+  <text x="49" y="213" font-size="28" letter-spacing="-.4">Windows internals,</text>
+  <text x="49" y="251" font-size="28" letter-spacing="-.4">readable in Hex-Rays.</text>
+  <path class="rule" d="M49 290h488"/>
+  <text x="49" y="326" font-size="17" class="muted">Instruction lifters. Typed syscalls. Kernel patterns.</text>
+  <text x="49" y="384" font-size="14" class="mono muted">IDA PRO 9.3 / 9.4 / 9.5</text>
+  <text x="49" y="407" font-size="12" class="muted">Windows x64 · x64 Hex-Rays required · Preview</text>
+  <path class="rule" d="M610 48v344"/>
+  <text x="656" y="78" font-size="12" letter-spacing="2" class="mono muted">FROM INSTRUCTION TO INTENT</text>
+  <rect x="656" y="105" width="494" height="104" fill="var(--wash)"/>
+  <text x="680" y="137" font-size="12" class="mono muted">HARDWARE INSTRUCTION</text>
+  <text x="680" y="181" font-size="30" class="mono">xgetbv</text>
+  <path d="M902 219v30m-7-7 7 7 7-7" stroke="var(--accent)" stroke-width="2" fill="none"/>
+  <text x="924" y="240" font-size="12" class="mono accent">LIFT</text>
+  <rect x="656" y="262" width="494" height="104" fill="var(--wash)"/>
+  <path d="M656 262v104" stroke="var(--blue)" stroke-width="3"/>
+  <text x="680" y="294" font-size="12" class="mono muted">TYPED HELPER</text>
+  <text x="680" y="338" font-size="28" class="mono blue">__xgetbv(index)</text>
+  <text x="656" y="399" font-size="12" class="muted">Schematic example · explicit inputs and outputs in microcode</text>
+</svg>

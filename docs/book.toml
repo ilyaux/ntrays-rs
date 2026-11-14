@@ -1,0 +1,17 @@
+[book]
+title = "NtRays"
+description = "Install, build and validate NtRays, a Rust Hex-Rays plugin for Windows x64 kernel analysis."
+authors = ["NtRays contributors"]
+language = "en"
+src = "src"
+
+[output.html]
+git-repository-url = "https://github.com/ilyaux/ntrays-rs"
+edit-url-template = "https://github.com/ilyaux/ntrays-rs/edit/main/docs/{path}"
+site-url = "/ntrays-rs/"
+default-theme = "light"
+preferred-dark-theme = "navy"
+no-section-label = true
+
+[output.html.search]
+limit-results = 20

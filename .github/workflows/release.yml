@@ -1,0 +1,116 @@
+name: Release
+
+# The reusable matrix builds each tag once; build.yml handles branch CI separately.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: Check tag and source version
+    runs-on: ubuntu-24.04
+    outputs:
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - name: Check out tagged sources
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Require the Cargo version in the tag
+        id: version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import os, re, tomllib
+          from pathlib import Path
+
+          version = tomllib.loads(Path('Cargo.toml').read_text())['workspace']['package']['version']
+          tag = os.environ['RELEASE_TAG']
+          if tag != f'v{version}' or not re.fullmatch(r'v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?', tag):
+              raise SystemExit(f'Tag {tag!r} must match Cargo workspace version v{version}')
+          prerelease = tag == 'v0.1.0' or '-' in version
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'prerelease={str(prerelease).lower()}\n')
+          print(f'{tag}: prerelease={prerelease}')
+          PY
+
+  build:
+    name: Build all SDK packages
+    needs: version
+    uses: ./.github/workflows/build.yml
+
+  publish:
+    name: Publish verified packages
+    needs: [version, build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download the three matrix artifacts
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: ntrays-ida*-windows-x64
+          path: packages
+          merge-multiple: true
+      - name: Verify checksums and source provenance
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, re, zipfile
+          from pathlib import Path
+
+          root = Path('packages')
+          expected = {f'ntrays-ida{sdk}-windows-x64.zip{ext}' for sdk in ('93', '94', '95') for ext in ('', '.sha256')}
+          if {p.name for p in root.iterdir()} != expected:
+              raise SystemExit('Expected exactly the three SDK ZIPs and their SHA256 files')
+          sources = []
+          for sdk in ('93', '94', '95'):
+              archive = root / f'ntrays-ida{sdk}-windows-x64.zip'
+              checksum = archive.with_suffix('.zip.sha256').read_text().strip()
+              digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+              if checksum != f'{digest}  {archive.name}':
+                  raise SystemExit(f'Checksum mismatch: {archive.name}')
+              with zipfile.ZipFile(archive) as package:
+                  if any(re.search(r'(^|/)build[^/]*\.log$', p, re.I) for p in package.namelist()):
+                      raise SystemExit('Build logs must not be released')
+                  manifest = json.loads(package.read('manifest.json').decode('utf-8-sig'))
+                  if manifest['source_revision'] != os.environ['GITHUB_SHA'] or manifest['ida'] != f'{sdk[0]}.{sdk[1]}':
+                      raise SystemExit(f'Unexpected source revision or SDK: {archive.name}')
+                  if hashlib.sha256(package.read('ntrays.dll')).hexdigest() != manifest['dll_sha256']:
+                      raise SystemExit(f'DLL checksum mismatch: {archive.name}')
+                  sources.append((manifest['source_files'], manifest['build_script_sha256']))
+          if any(source != sources[0] for source in sources[1:]):
+              raise SystemExit('SDK packages were built from different source files or build recipes')
+          print('Verified all six release assets, DLL hashes, source revision and common source manifest')
+          PY
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ needs.version.outputs.prerelease }}
+        run: |
+          cat > "$RUNNER_TEMP/release-notes.md" <<'EOF'
+          Windows x64 packages for IDA Pro 9.3, 9.4 and 9.5. Install the one DLL matching your IDA version; the x64 Hex-Rays decompiler is required.
+
+          Runtime regression validation covers licensed IDA/Hex-Rays 9.3. SDK 9.4 and 9.5 packages pass compilation and PE checks; runtime compatibility is not yet validated there. Hosted CI runs offline preset checks and core tests, then builds packages; it does not run IDA.
+
+          Each ZIP includes installation instructions, a source/DLL manifest and license notices. The adjacent `.sha256` file verifies the ZIP download. See the README and CHANGELOG for features, validation details and limitations.
+          EOF
+          flags=()
+          if [[ "$PRERELEASE" == true ]]; then
+            flags+=(--prerelease --latest=false)
+          fi
+          # Explicit assets exclude logs and prevent an accidental extra release upload.
+          gh release create "$RELEASE_TAG" \
+            packages/ntrays-ida93-windows-x64.zip packages/ntrays-ida93-windows-x64.zip.sha256 \
+            packages/ntrays-ida94-windows-x64.zip packages/ntrays-ida94-windows-x64.zip.sha256 \
+            packages/ntrays-ida95-windows-x64.zip packages/ntrays-ida95-windows-x64.zip.sha256 \
+            --verify-tag --title "NtRays $RELEASE_TAG" --notes-file "$RUNNER_TEMP/release-notes.md" "${flags[@]}"

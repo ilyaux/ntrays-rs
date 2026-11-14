@@ -7,7 +7,7 @@ use std::ffi::CStr;
 
 use crate::mc::{Builtin, Emitter, Flag, HASCALL, Insn, InsnInfo, Mop, NORET, Op, PURE, get_bytes, opnd, reg};
 
-pub fn lift(e: &mut Emitter, insn: Insn) -> bool {
+pub fn lift(e: &mut Emitter, insn: Insn, state: *mut std::ffi::c_void) -> bool {
     if let Some(helper) = simple_helper(insn) {
         return simple(e, helper);
     }
@@ -20,15 +20,34 @@ pub fn lift(e: &mut Emitter, insn: Insn) -> bool {
         Insn::Rdsspd => read_into_op0(e, c"__rdsspd", false),
         Insn::Rdsspq => read_into_op0(e, c"__rdsspq", false),
         Insn::Vmread => vmread(e),
+        Insn::Vmfunc => vmfunc(e),
+        Insn::Vmresume => vmresume(e),
+        Insn::Vmcall => register_state_call(e, c"__vmcall_regs", OPAQUE_REGS, false),
+        Insn::Rdpid => rdpid(e),
+        Insn::Rdpkru => pkru(e, false),
+        Insn::Wrpkru => pkru(e, true),
+        Insn::Xsavec => xstate_memory(e, c"_xsavec", c"_xsavec64"),
+        Insn::Xsaveopt => xstate_memory(e, c"_xsaveopt", c"_xsaveopt64"),
+        Insn::Xsaves => xstate_memory(e, c"_xsaves", c"_xsaves64"),
+        Insn::Xrstors => xstate_memory(e, c"_xrstors", c"_xrstors64"),
+        Insn::Umonitor => umonitor(e),
+        Insn::Senduipi => one_reg_void(e, c"_senduipi", Builtin::I64),
+        Insn::Umwait => waitpkg(e, c"_umwait"),
+        Insn::Tpause => waitpkg(e, c"_tpause"),
+        Insn::Enqcmd => enqcmd(e),
+        Insn::Uiret => uiret(e),
+        Insn::Encls => register_state_call(e, c"__encls_regs", SGX_REGS, true),
+        Insn::Enclu => register_state_call(e, c"__enclu_regs", OPAQUE_REGS, true),
         Insn::Rcl => rotate_carry(e, c"__rcl"),
         Insn::Rcr => rotate_carry(e, c"__rcr"),
         Insn::Iretq => iretq(e),
         Insn::Sysret => sysretq(e),
+        Insn::Int if e.insn().ops[0].value == 0x2E => syscall(e, state),
         Insn::Int => int2c(e),
         Insn::Nop => rsb_flush(e),
         Insn::Lea => trap_frame(e),
         Insn::Mov => paging_reloc(e),
-        Insn::Syscall => syscall(e),
+        Insn::Syscall => syscall(e, state),
         _ => false,
     }
 }
@@ -65,12 +84,11 @@ fn simple_helper(insn: Insn) -> Option<&'static CStr> {
         Invvpid => c"_invvpid",
         Invpcid => c"_invpcid",
         Invlpga => c"_invlpga",
-        Xsaves => c"_xsaves",
-        Xrstors => c"_xrstors",
         Prefetcht0 => c"_mm_prefetcht0",
         Prefetcht1 => c"_mm_prefetcht1",
         Prefetcht2 => c"_mm_prefetcht2",
         Prefetchnta => c"_mm_prefetchnta",
+        Serialize => c"_serialize",
         _ => return None,
     })
 }
@@ -197,6 +215,226 @@ fn vmread(e: &mut Emitter) -> bool {
     let addr = (info.ops[0].ty != opnd::REG).then(|| e.ea(0));
     let value = e.result(call);
     store_op0(e, &info, value, t.size(), addr);
+    true
+}
+
+const FLAGS: &[Flag] = &[Flag::Cf, Flag::Of, Flag::Zf, Flag::Sf, Flag::Pf];
+const FLAG_FIELDS: &[(Flag, &CStr)] = &[(Flag::Cf, c"CF"), (Flag::Of, c"OF"), (Flag::Zf, c"ZF"), (Flag::Sf, c"SF"), (Flag::Pf, c"PF")];
+
+fn clear_flags_except(e: &mut Emitter, keep: &[Flag]) {
+    for &flag in FLAGS {
+        if !keep.contains(&flag) {
+            let (zero, dst) = (e.num(0, 1), e.flag(flag));
+            e.mov(zero, dst);
+        }
+    }
+}
+
+fn segment_base_prefix(ea: u64) -> bool {
+    get_bytes(ea, &mut [0; 15]).iter().take_while(|&&b| b != 0x0F).any(|&b| b == 0x64 || b == 0x65)
+}
+
+fn register_address(e: &mut Emitter, op: crate::mc::OpInfo, ptr_size: i32) -> Option<Mop> {
+    if op.ty != opnd::REG { return None; }
+    let width = Builtin::from_dtype(op.dtype)?.size();
+    if !matches!(width, 2 | 4 | 8) || width > ptr_size { return None; }
+    let mut address = e.reg(op.reg as i32, width);
+    if width < ptr_size {
+        let extended = e.kreg(ptr_size);
+        e.emit(Op::Xdu, Some(address), None, Some(extended));
+        address = extended;
+    }
+    Some(address)
+}
+
+fn vmfunc(e: &mut Emitter) -> bool {
+    let (void, i32t) = (e.ty(Builtin::Void), e.ty(Builtin::I32));
+    let call = e.call(c"__vmfunc", void, HASCALL);
+    for (r, name) in [(reg::AX, c"function"), (reg::CX, c"index")] {
+        let value = e.reg(r, 4);
+        e.arg(&call, value, i32t, name);
+    }
+    e.emit_call(call);
+    true
+}
+
+fn vmresume(e: &mut Emitter) -> bool {
+    let i8t = e.ty(Builtin::I8);
+    let call = e.call(c"__vmx_vmresume", i8t, HASCALL);
+    let value = e.result(call);
+    let status = e.kreg(1);
+    e.mov(value, status);
+    clear_flags_except(e, &[Flag::Cf, Flag::Zf]);
+    // VMfailInvalid -> CF; VMfailValid -> ZF. Successful VM entry does not fall through.
+    for (flag, code) in [(Flag::Cf, 2), (Flag::Zf, 1)] {
+        let (number, dst) = (e.num(code, 1), e.flag(flag));
+        e.emit(Op::Setz, Some(status), Some(number), Some(dst));
+    }
+    true
+}
+
+fn rdpid(e: &mut Emitter) -> bool {
+    let op = e.insn().ops[0];
+    if op.ty != opnd::REG { return false; }
+    let Some(dst_ty) = Builtin::from_dtype(op.dtype) else { return false };
+    if !matches!(dst_ty.size(), 4 | 8) { return false; }
+    let ptr = e.ty(Builtin::PtrVoid);
+    let reg_size = e.size_of(ptr);
+    if dst_ty.size() > reg_size { return false; }
+    let i32t = e.ty(Builtin::I32);
+    let call = e.call(c"_rdpid_u32", i32t, 0);
+    let result = e.result(call);
+    let dst = e.reg(op.reg as i32, reg_size);
+    if reg_size == 8 { e.emit(Op::Xdu, Some(result), None, Some(dst)); }
+    else { e.mov(result, dst); }
+    true
+}
+
+fn pkru(e: &mut Emitter, write: bool) -> bool {
+    let (void, i32t) = (e.ty(Builtin::Void), e.ty(Builtin::I32));
+    let call = e.call(if write { c"__wrpkru" } else { c"__rdpkru" }, if write { void } else { i32t }, HASCALL);
+    for (r, name) in if write { &[(reg::AX, c"value"), (reg::CX, c"ecx"), (reg::DX, c"edx")][..] }
+                         else { &[(reg::CX, c"ecx")][..] } {
+        let value = e.reg(*r, 4);
+        e.arg(&call, value, i32t, name);
+    }
+    if write { e.emit_call(call); }
+    else {
+        let value = e.result(call);
+        let eax = e.reg(reg::AX, 8);
+        e.emit(Op::Xdu, Some(value), None, Some(eax));
+        let (zero, edx) = (e.num(0, 8), e.reg(reg::DX, 8));
+        e.mov(zero, edx);
+    }
+    true
+}
+
+fn xstate_memory(e: &mut Emitter, helper32: &CStr, helper64: &CStr) -> bool {
+    let info = e.insn();
+    if matches!(info.ops[0].ty, opnd::REG | opnd::IMM | opnd::VOID) { return false; }
+    if segment_base_prefix(info.ea) { return false; }
+    let mut buf = [0; 15];
+    let bytes = get_bytes(info.ea, &mut buf);
+    let rex = bytes.iter().position(|&b| b == 0x0F).and_then(|n| n.checked_sub(1)).map(|n| bytes[n]);
+    let wide = rex.is_some_and(|b| b & 0xF8 == 0x48);
+    let helper = if wide { helper64 } else { helper32 };
+    let (void, ptr, i64t) = (e.ty(Builtin::Void), e.ty(Builtin::PtrVoid), e.ty(Builtin::I64));
+    let call = e.call(helper, void, HASCALL);
+    let mask = e.reg_pair(reg::AX, reg::DX, 4);
+    let addr = e.ea(0);
+    e.arg(&call, addr, ptr, c"area");
+    e.arg(&call, mask, i64t, c"mask");
+    e.emit_call(call);
+    true
+}
+
+fn umonitor(e: &mut Emitter) -> bool {
+    let info = e.insn();
+    let op = info.ops[0];
+    // FS/GS addressing requires a segment-base model; retain Hex-Rays' fallback for those forms.
+    if segment_base_prefix(info.ea) { return false; }
+    let (void, ptr) = (e.ty(Builtin::Void), e.ty(Builtin::PtrVoid));
+    let ptr_size = e.size_of(ptr);
+    let Some(address) = register_address(e, op, ptr_size) else { return false };
+    let call = e.call(c"_umonitor", void, HASCALL);
+    e.arg(&call, address, ptr, c"address");
+    e.emit_call(call);
+    true
+}
+
+fn one_reg_void(e: &mut Emitter, helper: &CStr, ty: Builtin) -> bool {
+    let op = e.insn().ops[0];
+    if op.ty != opnd::REG { return false; }
+    let (void, arg_ty) = (e.ty(Builtin::Void), e.ty(ty));
+    let call = e.call(helper, void, HASCALL);
+    let value = e.reg(op.reg as i32, ty.size());
+    e.arg(&call, value, arg_ty, c"");
+    e.emit_call(call);
+    true
+}
+
+fn waitpkg(e: &mut Emitter, helper: &CStr) -> bool {
+    let op = e.insn().ops[0];
+    if op.ty != opnd::REG { return false; }
+    let (i8t, i32t, i64t) = (e.ty(Builtin::I8), e.ty(Builtin::I32), e.ty(Builtin::I64));
+    let call = e.call(helper, i8t, HASCALL);
+    let (control, deadline) = (e.reg(op.reg as i32, 4), e.reg_pair(reg::AX, reg::DX, 4));
+    e.arg(&call, control, i32t, c"control");
+    e.arg(&call, deadline, i64t, c"deadline");
+    let (value, cf) = (e.result(call), e.flag(Flag::Cf));
+    e.mov(value, cf);
+    clear_flags_except(e, &[Flag::Cf]);
+    true
+}
+
+fn enqcmd(e: &mut Emitter) -> bool {
+    let info = e.insn();
+    if info.ops[0].ty != opnd::REG || matches!(info.ops[1].ty, opnd::REG | opnd::IMM | opnd::VOID) { return false; }
+    if segment_base_prefix(info.ea) { return false; }
+    let (i32t, ptr) = (e.ty(Builtin::I32), e.ty(Builtin::PtrVoid));
+    let call = e.call(c"_enqcmd", i32t, HASCALL);
+    let ptr_size = e.size_of(ptr);
+    let Some(dst) = register_address(e, info.ops[0], ptr_size) else { return false };
+    let src = e.ea(1);
+    e.arg(&call, dst, ptr, c"destination");
+    e.arg(&call, src, ptr, c"source");
+    let (value, zf) = (e.result(call), e.flag(Flag::Zf));
+    e.emit(Op::Low, Some(value), None, Some(zf));
+    clear_flags_except(e, &[Flag::Zf]);
+    true
+}
+
+fn uiret(e: &mut Emitter) -> bool {
+    let frame = [(Builtin::PtrVoid, 0, c"ip"), (Builtin::I64, 8, c"flags"), (Builtin::PtrVoid, 16, c"sp")];
+    let values: Vec<_> = frame.iter().map(|&(t, off, _)| e.stack_value(t, off)).collect();
+    let void = e.ty(Builtin::Void);
+    let call = e.call(c"__uiret", void, NORET);
+    for ((t, _, name), value) in frame.into_iter().zip(values) {
+        let ty = e.ty(t);
+        e.arg(&call, value, ty, name);
+    }
+    e.emit_call(call);
+    true
+}
+
+const SGX_REGS: &[(i32, &CStr)] = &[(reg::AX, c"RAX"), (reg::BX, c"RBX"), (reg::CX, c"RCX"), (reg::DX, c"RDX")];
+const OPAQUE_REGS: &[(i32, &CStr)] = &[
+    (reg::AX, c"RAX"), (reg::BX, c"RBX"), (reg::CX, c"RCX"), (reg::DX, c"RDX"), (reg::SI, c"RSI"),
+    (reg::DI, c"RDI"), (reg::BP, c"RBP"), (reg::R8, c"R8"), (reg::R9, c"R9"), (reg::R10, c"R10"),
+    (reg::R11, c"R11"), (reg::R12, c"R12"), (reg::R13, c"R13"), (reg::R14, c"R14"), (reg::R15, c"R15"),
+];
+
+// Opaque register-state token, like the existing CPUID model. No hypervisor ABI or SGX leaf is assumed.
+fn register_state_call(e: &mut Emitter, helper: &CStr, regs: &[(i32, &CStr)], eax_leaf: bool) -> bool {
+    let (i8t, i32t, i64t) = (e.ty(Builtin::I8), e.ty(Builtin::I32), e.ty(Builtin::I64));
+    let call = e.call(helper, i64t, HASCALL);
+    for (i, &(reg, name)) in regs.iter().enumerate() {
+        let leaf = eax_leaf && i == 0;
+        let value = e.reg(reg, if leaf { 4 } else { 8 });
+        e.arg(&call, value, if leaf { i32t } else { i64t }, name);
+    }
+    let rsp = e.reg(reg::SP, 8);
+    e.arg(&call, rsp, i64t, c"RSP");
+    for &(flag, name) in FLAG_FIELDS {
+        let value = e.flag(flag);
+        e.arg(&call, value, i8t, name);
+    }
+    for &flag in FLAGS { e.spoil_flag(&call, flag); }
+    let (value, snapshot) = (e.result(call), e.kreg(8));
+    e.mov(value, snapshot);
+    for &(reg, name) in regs {
+        let extract = e.call(name, i64t, PURE);
+        e.arg(&extract, snapshot, i64t, c"");
+        let (value, dst) = (e.result(extract), e.reg(reg, 8));
+        e.mov(value, dst);
+    }
+    // The token also carries condition codes; do not leave users of SGX/VM-call flags undefined.
+    for &(flag, name) in FLAG_FIELDS {
+        let extract = e.call(name, i8t, PURE);
+        e.arg(&extract, snapshot, i64t, c"");
+        let (value, dst) = (e.result(extract), e.flag(flag));
+        e.mov(value, dst);
+    }
     true
 }
 
@@ -338,15 +576,15 @@ fn paging_reloc(e: &mut Emitter) -> bool {
 /// The API comes from the function the stub lives in (ntdll/win32u stubs are named after it). Unknown APIs keep
 /// only the four register arguments: the original also read two stack slots, which made Hex-Rays invent
 /// variables and fail lvar allocation on stubs with fewer arguments.
-fn syscall(e: &mut Emitter) -> bool {
-    use ntrays_core::syscall::{STUB_LOOKBEHIND, find_api, stub_id};
+fn syscall(e: &mut Emitter, state: *mut std::ffi::c_void) -> bool {
+    use ntrays_core::syscall::{STUB_LOOKBEHIND, stub_id};
     if !crate::db::is_pe64() {
         return false;
     }
     let ea = e.insn().ea;
     let mut before = [0u8; STUB_LOOKBEHIND];
     let id = ea.checked_sub(STUB_LOOKBEHIND as u64).and_then(|start| stub_id(get_bytes(start, &mut before)));
-    let api = find_api(&e.func_name());
+    let (id, api) = crate::syscall_info(state, ea, id, &e.func_name());
 
     const ARG_REGS: [i32; 4] = [reg::R10, reg::DX, reg::R8, reg::R9];
     let (i32t, i64t) = (e.ty(Builtin::I32), e.ty(Builtin::I64));

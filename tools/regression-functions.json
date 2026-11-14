@@ -1,0 +1,254 @@
+[
+ {
+  "name": "KeYieldProcessorEx",
+  "reason": "named"
+ },
+ {
+  "name": "KiPageFault",
+  "reason": "named"
+ },
+ {
+  "name": "KiSystemCall64",
+  "reason": "named"
+ },
+ {
+  "name": "KiSystemCall64Shadow",
+  "reason": "named"
+ },
+ {
+  "name": "KiDpcInterrupt",
+  "reason": "named"
+ },
+ {
+  "name": "KiIpiInterrupt",
+  "reason": "named"
+ },
+ {
+  "name": "KiApcInterrupt",
+  "reason": "named"
+ },
+ {
+  "name": "KiBreakpointTrap",
+  "reason": "named"
+ },
+ {
+  "name": "KiGeneralProtectionFault",
+  "reason": "named"
+ },
+ {
+  "name": "KiSwInterrupt",
+  "reason": "named"
+ },
+ {
+  "name": "KiRaiseAssertion",
+  "reason": "named"
+ },
+ {
+  "name": "KxDebugTrapOrFault",
+  "reason": "named"
+ },
+ {
+  "name": "KiDispatchInterrupt",
+  "reason": "named"
+ },
+ {
+  "name": "KeStackAttachProcess",
+  "reason": "named"
+ },
+ {
+  "name": "MmAccessFault",
+  "reason": "named"
+ },
+ {
+  "name": "MiStoreModifiedWriteComplete",
+  "reason": "paging_imm"
+ },
+ {
+  "name": "?StDmPageRemove@?$ST_STORE@USM_TRAITS@@@@SAJPEAU_ST_DATA_MGR@1@PEAU_ST_WORK_ITEM@1@@Z",
+  "reason": "int2c"
+ },
+ {
+  "name": "MiUnlockPageTable",
+  "reason": "paging_imm"
+ },
+ {
+  "name": "KiQuantumEnd",
+  "reason": "clac"
+ },
+ {
+  "name": "HalpPCIConfig",
+  "reason": "cpuid"
+ },
+ {
+  "name": "HalpPciAccessMmConfigSpace",
+  "reason": "cpuid"
+ },
+ {
+  "name": "RtlpHpLfhSubsegmentInitialize",
+  "reason": "int2c"
+ },
+ {
+  "name": "KiFlushRangeWorker",
+  "reason": "invpcid"
+ },
+ {
+  "name": "MiFlushTbList",
+  "reason": "invpcid"
+ },
+ {
+  "name": "RtlXRestoreS",
+  "reason": "xrstors"
+ },
+ {
+  "name": "KxContextToKframes",
+  "reason": "xrstors"
+ },
+ {
+  "name": "RtlXSaveS",
+  "reason": "xsaves"
+ },
+ {
+  "name": "KeContextFromKframes",
+  "reason": "xsaves"
+ },
+ {
+  "name": "ExGenRandom",
+  "reason": "rdrand"
+ },
+ {
+  "name": "KiProcessControlProtectionFromKernelMode",
+  "reason": "rdsspq"
+ },
+ {
+  "name": "RtlCaptureContext2",
+  "reason": "rdsspq"
+ },
+ {
+  "name": "RtlRestoreContext",
+  "reason": "iretq"
+ },
+ {
+  "name": "RcFrameConsolidation",
+  "reason": "iretq"
+ },
+ {
+  "name": "__cpu_features_init",
+  "reason": "xgetbv"
+ },
+ {
+  "name": "sub_14050C0E0",
+  "reason": "xgetbv"
+ },
+ {
+  "name": "KeBugCheck2",
+  "reason": "stac"
+ },
+ {
+  "name": "KiExecuteDpc",
+  "reason": "clac"
+ },
+ {
+  "name": "MiDbgCopyMemory",
+  "reason": "stac"
+ },
+ {
+  "name": "NtContinueEx",
+  "reason": "incsspq"
+ },
+ {
+  "name": "NtRaiseException",
+  "reason": "incsspq"
+ },
+ {
+  "name": "KiRestoreSetContextState",
+  "reason": "rstorssp"
+ },
+ {
+  "name": "KiCallUserMode",
+  "reason": "rstorssp"
+ },
+ {
+  "name": "NtCallbackReturn",
+  "reason": "saveprevssp"
+ },
+ {
+  "name": "KyStartUserThread",
+  "reason": "swapgs"
+ },
+ {
+  "name": "KxStartUserThread",
+  "reason": "saveprevssp"
+ },
+ {
+  "name": "KiChainedDispatch",
+  "reason": "swapgs"
+ },
+ {
+  "name": "KiEnableXSave",
+  "reason": "xsetbv"
+ },
+ {
+  "name": "KiKernelSysretExit",
+  "reason": "sysret"
+ },
+ {
+  "name": "KiErrataSkx55Present",
+  "reason": "syscall"
+ },
+ {
+  "name": "KiErrata704Present",
+  "reason": "syscall"
+ },
+ {
+  "name": "?KiComputeGroupSchedulingRank@@YAXPEAU_KSCHEDULING_GROUP@@PEAU_KPRCB@@PEAT_KISOLATION_UNIT_LOCK_HANDLE@@PEAU_KSCB@@@Z",
+  "reason": "uses KiIrqlFlags"
+ },
+ {
+  "name": "?KiDeregisterObjectWaitBlock@@YAEPEAXPEAU_KWAIT_BLOCK@@@Z",
+  "reason": "uses KiIrqlFlags"
+ },
+ {
+  "name": "?KiAdaptThreadIdealProcessorForProcessIdealSetChange@@YAXPEAU_KPROCESS@@PEAU_KTHREAD@@PEAU_KAFFINITY_EX@@2PEAE3PEAK@Z",
+  "reason": "uses HvlEnlightenments"
+ },
+ {
+  "name": "?KiForceIdleParkUnparkProcessor@@YAXPEAU_KPRCB@@E@Z",
+  "reason": "uses HvlEnlightenments"
+ },
+ {
+  "name": "DbgkForwardException",
+  "reason": "uses PerfGlobalGroupMask"
+ },
+ {
+  "name": "DbgkpSendApiMessage",
+  "reason": "uses PerfGlobalGroupMask"
+ },
+ {
+  "name": "InitBootProcessor",
+  "reason": "uses MiFlags"
+ },
+ {
+  "name": "MI_IS_PHYSICAL_ADDRESS",
+  "reason": "uses MiFlags"
+ },
+ {
+  "name": "MI_CLEAR_PTE_BITS_FOR_READ_CLUSTER",
+  "reason": "uses MiPteHasShadow"
+ },
+ {
+  "name": "MI_WRITE_INVALID_PTE_TB_FLUSH_NEEDED",
+  "reason": "uses MiPteHasShadow"
+ },
+ {
+  "name": "MiClearStaleSecurePageMapping",
+  "reason": "uses MiPteInShadowRange"
+ },
+ {
+  "name": "?KiForceIdleStartDpcRoutine@@YAXPEAU_KDPC@@PEAX11@Z",
+  "reason": "uses KiRemoveSystemWorkPriorityKick"
+ },
+ {
+  "name": "?KiForceIdleStopDpcRoutine@@YAXPEAU_KDPC@@PEAX11@Z",
+  "reason": "uses KiRemoveSystemWorkPriorityKick"
+ }
+]

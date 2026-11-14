@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="246" viewBox="0 0 1200 246" role="img" aria-labelledby="title desc">
+  <title id="title">NtRays architecture</title>
+  <desc id="desc">IDA and Hex-Rays dispatch callbacks through a C++ SDK shim to the Rust plugin, which uses an IDA-independent Rust core. The layers own SDK objects, emit microcode, manage database state and supply testable rules and tables.</desc>
+  <style>
+    svg{--bg:#fff;--ink:#15171b;--muted:#606773;--rule:#e2e5e9;--accent:#b44a24;--blue:#1d4ed8;--wash:#f6f7f9}
+    @media(prefers-color-scheme:dark){svg{--bg:#0d1117;--ink:#e6edf3;--muted:#959eab;--rule:#30363d;--accent:#f2a17e;--blue:#79a6ff;--wash:#161b22}}
+    text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;fill:var(--ink)}.mono{font-family:ui-monospace,"SFMono-Regular",Consolas,monospace}.muted{fill:var(--muted)}.rule{stroke:var(--rule);fill:none}.blue{fill:var(--blue)}
+  </style>
+  <rect width="1200" height="246" fill="var(--bg)"/>
+  <path class="rule" d="M.5.5H1199.5V245.5H.5Z"/>
+  <text x="36" y="38" font-size="12" letter-spacing="2" class="mono muted">ONE PLUGIN · FOUR CLEAR RESPONSIBILITIES</text>
+  <rect x="36" y="66" width="240" height="96" fill="var(--wash)"/>
+  <rect x="332" y="66" width="240" height="96" fill="var(--wash)"/>
+  <rect x="628" y="66" width="240" height="96" fill="var(--wash)"/>
+  <rect x="924" y="66" width="240" height="96" fill="var(--wash)"/>
+  <g stroke="var(--muted)" fill="none" stroke-width="1.5"><path d="M288 114h31m-6-6 6 6-6 6M584 114h31m-6-6 6 6-6 6M880 114h31m-6-6 6 6-6 6"/></g>
+  <text x="56" y="102" font-size="13" class="mono muted">HOST</text>
+  <text x="56" y="137" font-size="23" font-weight="600">IDA + Hex-Rays</text>
+  <text x="352" y="102" font-size="13" class="mono muted">SDK BOUNDARY</text>
+  <text x="352" y="137" font-size="23" font-weight="600">C++ shim</text>
+  <path d="M628 66v96M924 66v96" stroke="var(--accent)" stroke-width="3"/>
+  <text x="648" y="102" font-size="13" class="mono muted">PLUGIN</text>
+  <text x="648" y="137" font-size="23" font-weight="600" class="blue">Rust hooks</text>
+  <text x="944" y="102" font-size="13" class="mono muted">INDEPENDENT CORE</text>
+  <text x="944" y="137" font-size="23" font-weight="600" class="blue">Rules + tables</text>
+  <text x="36" y="196" font-size="15" class="muted">Decode and decompile</text>
+  <text x="332" y="196" font-size="15" class="muted">Own SDK objects</text>
+  <text x="628" y="196" font-size="15" class="muted">Lift, simplify, persist</text>
+  <text x="924" y="196" font-size="15" class="muted">Test without IDA</text>
+  <text x="36" y="225" font-size="11" class="mono muted">LICENSED RUNTIME</text>
+  <text x="628" y="225" font-size="11" class="mono muted">PANICS CAUGHT AT RUST ENTRY POINTS</text>
+</svg>

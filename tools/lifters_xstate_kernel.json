@@ -1,0 +1,4 @@
+[
+  {"name": "RtlXSaveS", "reason": "XSAVES full EDX:EAX mask"},
+  {"name": "RtlXRestoreS", "reason": "XRSTORS full EDX:EAX mask"}
+]

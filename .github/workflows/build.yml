@@ -1,0 +1,70 @@
+name: Build Windows plugins
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: IDA ${{ matrix.ida }} / Windows x64
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ida: '9.3'
+            sdk: acacbbcc8fa349d919cc185d88b1ab3710ca252d # v9.3.1-release
+          - ida: '9.4'
+            sdk: 2348615c25f90e357cd2cc72fcfede1ba14ad41a # v9.4.0-release
+          - ida: '9.5'
+            sdk: 04c0a982c80fd08388e7a3c26ff711fc1c38344d # v9.5.0-release
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Check out sources
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Check out pinned SDK
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: HexRaysSA/ida-sdk
+          ref: ${{ matrix.sdk }}
+          path: .ci-sdk
+          persist-credentials: false
+          sparse-checkout: |
+            src/include
+            src/lib/x64_win_64
+            src/lib/x64_win_64_s
+      - name: Install pinned Rust
+        run: |
+          rustup toolchain install 1.93.1 --profile minimal --no-self-update
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          rustup default 1.93.1
+      - name: Check generated syscall presets (offline)
+        run: python tools/gen_syscall_presets.py --check --self-test
+      - name: Test core
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/core-target-${{ matrix.ida }}
+        run: cargo test --locked -p ntrays-core
+      - name: Build and package
+        run: >-
+          ./tools/build_release.ps1 -IdaVersion '${{ matrix.ida }}'
+          -IdaSdk '${{ github.workspace }}/.ci-sdk/src'
+          -OutputDirectory '${{ runner.temp }}/ntrays-release'
+      - name: Upload package
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: ntrays-ida${{ matrix.ida }}-windows-x64
+          path: |
+            ${{ runner.temp }}/ntrays-release/*.zip
+            ${{ runner.temp }}/ntrays-release/*.sha256
+          if-no-files-found: error
+          retention-days: 14

@@ -17,10 +17,16 @@ pub mod reg {
     pub const BX: i32 = 3;
     pub const SP: i32 = 4;
     pub const BP: i32 = 5;
+    pub const SI: i32 = 6;
+    pub const DI: i32 = 7;
     pub const R8: i32 = 8;
     pub const R9: i32 = 9;
     pub const R10: i32 = 10;
     pub const R11: i32 = 11;
+    pub const R12: i32 = 12;
+    pub const R13: i32 = 13;
+    pub const R14: i32 = 14;
+    pub const R15: i32 = 15;
     pub const SS: i32 = 31;
     pub const DS: i32 = 32;
 }
@@ -33,11 +39,14 @@ pub mod opnd {
 }
 
 /// Flag registers Rust can use; order matches `flag_regs[]` in shim.cpp.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u32)]
 pub enum Flag {
     Cf,
     Of,
+    Zf,
+    Sf,
+    Pf,
 }
 
 /// Instructions the dispatcher hands to Rust. Order must match `NTRAYS_INSNS` in shim.cpp (checked at load).
@@ -61,6 +70,9 @@ insns! {
     Invvpid = "invvpid", Invpcid = "invpcid", Invlpga = "invlpga", Xsaves = "xsaves", Xrstors = "xrstors",
     Prefetcht0 = "prefetcht0", Prefetcht1 = "prefetcht1", Prefetcht2 = "prefetcht2", Prefetchnta = "prefetchnta", Lea = "lea", Nop = "nop", Mov = "mov",
     Syscall = "syscall",
+    Vmfunc = "vmfunc", Vmresume = "vmresume", Vmcall = "vmcall", Rdpid = "rdpid", Rdpkru = "rdpkru",
+    Wrpkru = "wrpkru", Xsavec = "xsavec", Xsaveopt = "xsaveopt", Serialize = "serialize", Umonitor = "umonitor", Umwait = "umwait",
+    Tpause = "tpause", Enqcmd = "enqcmd", Uiret = "uiret", Senduipi = "senduipi", Encls = "encls", Enclu = "enclu",
 }
 
 impl Insn {
@@ -79,8 +91,10 @@ pub enum Op {
     Stx,
     Low,
     High,
+    Xdu,
+    Setz,
 }
-pub const OP_NAMES: &[&str] = &["mov", "add", "ldx", "stx", "low", "high"];
+pub const OP_NAMES: &[&str] = &["mov", "add", "ldx", "stx", "low", "high", "xdu", "setz"];
 
 /// Builtin types; order matches `bts[]` in `ntrays_type_builtin`, with `PtrVoid` one past the end.
 #[derive(Clone, Copy, Debug)]

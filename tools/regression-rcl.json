@@ -1,0 +1,8 @@
+[
+  {"name": "rcl_one", "reason": "rcl 1"},
+  {"name": "rcr_one", "reason": "rcr 1"},
+  {"name": "rcl_cl", "reason": "rcl cl"},
+  {"name": "rcl_imm", "reason": "rcl 5"},
+  {"name": "rcr_imm", "reason": "rcr 7"},
+  {"name": "rcl_mem", "reason": "rcl mem,3"}
+]

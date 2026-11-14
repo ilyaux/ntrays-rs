@@ -1,0 +1,4 @@
+[
+  {"name": "KiRestoreSetContextState", "reason": "callee type inference before the caller"},
+  {"name": "KiChainedDispatch", "reason": "call analysis after KiRestoreSetContextState"}
+]

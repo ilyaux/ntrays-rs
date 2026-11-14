@@ -8,7 +8,7 @@ lifted instructions, users of the globals the optimizers fold), so the same list
 with and without a plugin and diffed.
 """
 import json, os, re, sys
-import ida_allins, ida_auto, ida_bytes, ida_funcs, ida_hexrays, ida_name, ida_pro, ida_ua, idaapi, idautils, idc
+import ida_allins, ida_auto, ida_bytes, ida_funcs, ida_hexrays, ida_ida, ida_name, ida_pro, ida_ua, idaapi, idautils, idc
 
 BAD = idaapi.BADADDR
 NAMED = [
@@ -74,10 +74,46 @@ def select():
         for u in users[:PER_KIND]:
             add(u, "uses " + g)
 
-    ea = ida_bytes.find_bytes(RSB, idc.get_inf_attr(idc.INF_MIN_EA))
+    ea = ida_bytes.find_bytes(RSB, ida_ida.inf_get_min_ea())
     if ea != BAD:
         add(func_name(ea), "rsb_flush")
     return [{"name": n, "reason": r} for n, r in picked.items()]
+
+
+def export_functions(funcs, out):
+    """Export in manifest order; return explicit statuses for the regression runner."""
+    ida_auto.auto_wait()
+    os.makedirs(out, exist_ok=True)
+    if not ida_hexrays.init_hexrays_plugin():
+        raise RuntimeError("Hex-Rays decompiler unavailable")
+    results = []
+    filenames = set()
+    for f in funcs:
+        safe = re.sub(r"[^\w.-]", "_", f["name"])[:120] + ".c"
+        if safe.casefold() in filenames:
+            raise ValueError("colliding output filename: " + safe)
+        filenames.add(safe.casefold())
+        ea = ida_name.get_name_ea(BAD, f["name"])
+        hf = ida_hexrays.hexrays_failure_t()
+        error = None
+        try:
+            if ea == BAD:
+                raise ValueError("function not found: " + f["name"])
+            # DECOMP_NO_CACHE: the IDB caches pseudocode across plugin runs.
+            cf = ida_hexrays.decompile(ea, hf, ida_hexrays.DECOMP_NO_CACHE)
+            if cf:
+                text = str(cf)
+            else:
+                error = "%s at %X" % (hf.desc(), hf.errea)
+                text = "// decompile failed: " + error
+        except Exception as e:
+            error = str(e)
+            text = "// decompile failed: " + error
+        with open(os.path.join(out, safe), "w", encoding="utf-8", newline="\n") as fh:
+            fh.write("// %s (%s)\n%s\n" % (f["name"], f["reason"], text))
+        results.append({"name": f["name"], "file": safe, "ea": hex(ea), "error": error})
+        print("[golden] %d/%d %s: %s" % (len(results), len(funcs), f["name"], error or "ok"), flush=True)
+    return results
 
 
 def main():
@@ -86,23 +122,16 @@ def main():
     os.makedirs(out, exist_ok=True)
     if mode == "select":
         funcs = select()
-        json.dump(funcs, open(os.path.join(out, "functions.json"), "w"), indent=1)
+        with open(os.path.join(out, "functions.json"), "w", encoding="utf-8") as fh:
+            json.dump(funcs, fh, indent=1)
+    elif mode == "use":
+        with open(idc.ARGV[3], encoding="utf-8") as fh:
+            funcs = json.load(fh)
     else:
-        funcs = json.load(open(idc.ARGV[3]))
-    ida_hexrays.init_hexrays_plugin()
-    for f in funcs:
-        ea = ida_name.get_name_ea(BAD, f["name"])
-        hf = ida_hexrays.hexrays_failure_t()
-        try:
-            # DECOMP_NO_CACHE: the IDB caches pseudocode across plugin runs.
-            cf = ida_hexrays.decompile(ea, hf, ida_hexrays.DECOMP_NO_CACHE)
-            text = str(cf) if cf else "// decompile failed: %s at %X" % (hf.desc(), hf.errea)
-        except Exception as e:
-            text = "// decompile failed: %s" % e
-        safe = re.sub(r"[^\w.-]", "_", f["name"])[:120]
-        with open(os.path.join(out, safe + ".c"), "w", encoding="utf-8") as fh:
-            fh.write("// %s (%s)\n%s\n" % (f["name"], f["reason"], text))
+        raise ValueError("expected select or use")
+    export_functions(funcs, out)
     ida_pro.qexit(0)
 
 
-main()
+if __name__ == "__main__":
+    main()

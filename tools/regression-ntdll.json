@@ -1,0 +1,6 @@
+[
+  {"name": "NtClose", "reason": "one syscall argument"},
+  {"name": "NtQuerySystemInformation", "reason": "four syscall arguments"},
+  {"name": "ZwCreateFile", "reason": "eleven typed syscall arguments"},
+  {"name": "ZwTestAlert", "reason": "zero syscall arguments"}
+]

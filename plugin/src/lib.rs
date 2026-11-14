@@ -11,7 +11,7 @@ use std::ffi::{CStr, CString, c_char, c_void};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::Mutex;
 
-use ntrays_core::fold;
+use ntrays_core::{fold, syscall, syscall_state};
 
 unsafe extern "C" {
     /// Prints to IDA's Output window.
@@ -65,6 +65,13 @@ mod db {
         fn ntrays_db_enable_kuser();
         fn ntrays_add_parent_type(child: *const std::ffi::c_char, parent: *const std::ffi::c_char);
         fn ntrays_db_fix_parent_types() -> i32;
+        fn ntrays_db_syscall_read(kind: u32, ea: u64, buf: *mut u8, cap: usize) -> isize;
+        fn ntrays_db_syscall_write(kind: u32, ea: u64, data: *const u8, size: usize) -> bool;
+        fn ntrays_db_syscall_legacy_selection() -> u64;
+        fn ntrays_db_syscall_legacy_site(ea: u64) -> u64;
+        fn ntrays_db_syscall_legacy_confirmed(expected: *const u8, size: usize) -> bool;
+        fn ntrays_db_syscall_exports() -> usize;
+        fn ntrays_db_syscall_export(index: usize, number: *mut u32, name: *mut std::ffi::c_char, cap: usize) -> isize;
     }
 
     /// Settings slots in the IDB (netnode "$ ntrays-rs").
@@ -106,6 +113,45 @@ mod db {
         unsafe { ntrays_db_is_pe64() }
     }
 
+    pub fn syscall_read(kind: u32, ea: u64) -> Result<Option<Vec<u8>>, String> {
+        let size = unsafe { ntrays_db_syscall_read(kind, ea, std::ptr::null_mut(), 0) };
+        if size == -1 { return Ok(None); }
+        if size < 0 || size as usize > ntrays_core::syscall_state::MAX_BLOB {
+            return Err("invalid or unreadable syscall state".into());
+        }
+        let mut bytes = vec![0; size as usize];
+        if size != 0 && unsafe { ntrays_db_syscall_read(kind, ea, bytes.as_mut_ptr(), bytes.len()) } != size {
+            return Err("syscall state changed while reading".into());
+        }
+        Ok(Some(bytes))
+    }
+
+    pub fn syscall_write(kind: u32, ea: u64, bytes: &[u8]) -> bool {
+        unsafe { ntrays_db_syscall_write(kind, ea, bytes.as_ptr(), bytes.len()) }
+    }
+
+    pub fn legacy_selection() -> u64 { unsafe { ntrays_db_syscall_legacy_selection() } }
+    pub fn legacy_site(ea: u64) -> u64 { unsafe { ntrays_db_syscall_legacy_site(ea) } }
+    pub fn legacy_confirmed() -> bool {
+        let sha = ntrays_core::syscall_state::LEGACY_TABLE_SHA256.as_bytes();
+        unsafe { ntrays_db_syscall_legacy_confirmed(sha.as_ptr(), sha.len()) }
+    }
+
+    pub fn exported_syscalls() -> ntrays_core::syscall::SyscallMap {
+        let mut map = ntrays_core::syscall::SyscallMap::new();
+        for index in 0..unsafe { ntrays_db_syscall_exports() } {
+            let mut number = 0;
+            let mut buf = [0u8; 256];
+            let len = unsafe { ntrays_db_syscall_export(index, &mut number, buf.as_mut_ptr().cast(), buf.len()) };
+            if len > 0 && (len as usize) < buf.len() {
+                if let Some(name) = std::str::from_utf8(&buf[..len as usize]).ok().and_then(ntrays_core::syscall::nt_name) {
+                    map.entry(number).or_insert(name);
+                }
+            }
+        }
+        map
+    }
+
     /// Patches every RSB-stuffing gadget once per database, as a regular IDA patch (Edit > Patch program shows it
     /// and can revert it). Without this, ISRs containing the gadget do not decompile at all.
     pub fn patch_rsb_gadgets() {
@@ -131,10 +177,92 @@ mod db {
     }
 }
 
+struct DbSyscalls {
+    state: syscall_state::State,
+    writable: bool,
+    legacy_confirmed: bool,
+}
+
+impl DbSyscalls {
+    fn load() -> Self {
+        let mut writable = true;
+        let legacy_confirmed = db::legacy_confirmed();
+        match db::syscall_read(0, 0).and_then(|blob| blob.map(|b| syscall_state::State::decode(&b)).transpose()) {
+            Ok(Some(state)) => return Self { state, writable, legacy_confirmed },
+            Ok(None) => (),
+            Err(error) => {
+                msg(&format!("[ntrays-rs] {error}; stored syscall data kept unchanged\n"));
+                return Self { state: syscall_state::State::default(), writable: false, legacy_confirmed };
+            }
+        }
+        let selection = db::legacy_selection();
+        let migrated = if !legacy_confirmed {
+            if selection != 0 {
+                msg("[ntrays-rs] legacy syscall indexes not migrated: table provenance SHA is not confirmed\n");
+                writable = false; // leave the new format absent so a later confirmed migration can import it
+            }
+            Ok(syscall_state::State::default())
+        } else if selection == 1 {
+            db::syscall_read(1, 0).and_then(|b| syscall_state::migrate_map(selection, b.as_deref().unwrap_or(&[])))
+        } else { syscall_state::migrate_map(selection, &[]) };
+        let mut state = match migrated {
+            Ok(state) => state,
+            Err(error) => { msg(&format!("[ntrays-rs] legacy syscall migration: {error}; original node preserved\n")); writable = false; syscall_state::State::default() }
+        };
+        if state.map.is_empty() && (selection == 0 || !legacy_confirmed) {
+            state.map = db::exported_syscalls();
+            if !state.map.is_empty() { msg(&format!("[ntrays-rs] extracted {} syscall names from IDB exports\n", state.map.len())); }
+        }
+        if writable && ((legacy_confirmed && selection != 0) || !state.map.is_empty()) {
+            match state.encode() {
+                Ok(bytes) if db::syscall_write(0, 0, &bytes) => (),
+                _ => { msg("[ntrays-rs] could not commit syscall map; original data preserved\n"); writable = false; }
+            }
+        }
+        Self { state, writable, legacy_confirmed }
+    }
+
+    fn site(&self, ea: u64) -> Result<syscall_state::CallInfo, String> {
+        match db::syscall_read(2, ea).and_then(|blob| blob.map(|b| syscall_state::CallInfo::decode(&b)).transpose()) {
+            Ok(Some(info)) => return Ok(info),
+            Ok(None) => (),
+            Err(error) => { msg(&format!("[ntrays-rs] callsite {ea:X}: {error}; override not changed\n")); return Err(error); }
+        }
+        let raw = db::legacy_site(ea);
+        if raw == 0 { return Ok(syscall_state::CallInfo::default()); }
+        if !self.legacy_confirmed {
+            let error = "legacy override not migrated without table provenance SHA".to_string();
+            msg(&format!("[ntrays-rs] callsite {ea:X}: {error}\n"));
+            return Err(error);
+        }
+        match syscall_state::migrate_call(raw) {
+            Ok(info) => {
+                if self.writable {
+                    if let Ok(bytes) = info.encode() {
+                        if !db::syscall_write(2, ea, &bytes) { msg("[ntrays-rs] could not persist migrated syscall override\n"); }
+                    }
+                }
+                Ok(info)
+            }
+            Err(error) => { msg(&format!("[ntrays-rs] legacy callsite {ea:X}: {error}; original node preserved\n")); Err(error) }
+        }
+    }
+}
+
+/// Called only inside the guarded lifter entry point; the pointer belongs to its current plugmod/IDB.
+pub(crate) fn syscall_info(state: *mut c_void, ea: u64, stub_id: Option<u32>, function: &str) -> (Option<u32>, Option<&'static syscall::Api>) {
+    let Some(plugin) = (unsafe { state.cast::<Plugin>().as_ref() }) else { return (stub_id, syscall::find_api(function)) };
+    let syscalls = plugin.syscalls.lock().unwrap_or_else(|e| e.into_inner());
+    let Ok(site) = syscalls.site(ea) else { return (stub_id, None) };
+    let (number, name) = syscalls.state.resolve(&site, stub_id, function);
+    (number, syscall::find_api(name))
+}
+
 /// Per-database plugin state.
 struct Plugin {
     /// Fold rules resolved to addresses; `None` until first use and after any rename in the database.
     folds: Mutex<Option<fold::Resolved>>,
+    syscalls: Mutex<DbSyscalls>,
 }
 
 #[unsafe(no_mangle)]
@@ -150,7 +278,8 @@ extern "C" fn ntrays_init() -> *mut c_void {
             db::enable_kuser();
             db::use_parent_types();
         }
-        Box::into_raw(Box::new(Plugin { folds: Mutex::new(None) })).cast()
+        let syscalls = if db::is_pe64() { DbSyscalls::load() } else { DbSyscalls { state: syscall_state::State::default(), writable: false, legacy_confirmed: false } };
+        Box::into_raw(Box::new(Plugin { folds: Mutex::new(None), syscalls: Mutex::new(syscalls) })).cast()
     })
 }
 
@@ -165,11 +294,11 @@ extern "C" fn ntrays_run(_state: *mut c_void, _arg: usize) -> bool {
 }
 
 #[unsafe(no_mangle)]
-extern "C" fn ntrays_lift(_state: *mut c_void, builder: *mut c_void, kind: u32) -> bool {
+extern "C" fn ntrays_lift(state: *mut c_void, builder: *mut c_void, kind: u32) -> bool {
     guard("lift", false, || {
         let Some(insn) = mc::Insn::from_index(kind) else { return false };
         let mut e = unsafe { mc::Emitter::new(builder) };
-        lift::lift(&mut e, insn)
+        lift::lift(&mut e, insn, state)
     })
 }
 

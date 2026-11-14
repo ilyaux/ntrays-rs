@@ -12,6 +12,8 @@
 #include <segment.hpp>
 #include <kernwin.hpp>
 #include <intel.hpp>
+#include <xref.hpp>
+#include <entry.hpp>
 
 // ---------------------------------------------------------------------------------------------------------------
 // Tables shared with Rust by index. lib.rs checks the names at load time (`ntrays_table_name`), so the order here
@@ -23,8 +25,10 @@
 	X( rstorssp ) X( wrssd ) X( wrssq ) X( wrussd ) X( wrussq ) X( clrssbsy ) X( clflushopt ) X( clwb ) X( vmclear ) \
 	X( vmlaunch ) X( vmptrld ) X( vmptrst ) X( vmwrite ) X( vmxoff ) X( vmxon ) X( invept ) X( invvpid ) X( invpcid ) \
 	X( invlpga ) X( xsaves ) X( xrstors ) X( prefetcht0 ) X( prefetcht1 ) X( prefetcht2 ) X( prefetchnta ) \
-	X( lea ) X( nop ) X( mov ) X( syscall )
-#define NTRAYS_OPS( X ) X( mov ) X( add ) X( ldx ) X( stx ) X( low ) X( high )
+	X( lea ) X( nop ) X( mov ) X( syscall ) \
+	X( vmfunc ) X( vmresume ) X( vmcall ) X( rdpid ) X( rdpkru ) X( wrpkru ) X( xsavec ) X( xsaveopt ) X( serialize ) \
+	X( umonitor ) X( umwait ) X( tpause ) X( enqcmd ) X( uiret ) X( senduipi ) X( encls ) X( enclu )
+#define NTRAYS_OPS( X ) X( mov ) X( add ) X( ldx ) X( stx ) X( low ) X( high ) X( xdu ) X( setz )
 
 #define AS_NN( n ) NN_##n,
 #define AS_M( n ) m_##n,
@@ -89,7 +93,7 @@ extern "C" uint32 ntrays_mop_reg_pair( builder* b, int lo, int hi, int halfsize 
 {
 	GUARDED( NONE, mop_t op; op.make_reg_pair( reg2mreg( lo ), reg2mreg( hi ), halfsize ); return b->add_mop( std::move( op ) ); )
 }
-static const mreg_t flag_regs[] = { mr_cf, mr_of };  // Rust `Flag` enum order
+static const mreg_t flag_regs[] = { mr_cf, mr_of, mr_zf, mr_sf, mr_pf };  // Rust `Flag` enum order
 extern "C" uint32 ntrays_mop_flag( builder* b, uint32 flag )
 {
 	GUARDED( NONE,
@@ -105,7 +109,18 @@ extern "C" uint32 ntrays_mop_ea( builder* b, int opnum )  // effective address o
 	GUARDED( NONE,
 		mreg_t r = b->cg.load_effective_address( opnum );
 		if ( b->bad( r == mr_none ) ) return NONE;
-		mop_t op; op.make_reg( r, 8 ); return b->add_mop( std::move( op ) ); )
+		int size = ad64( b->cg.insn ) ? 8 : ad32( b->cg.insn ) ? 4 : 2;
+		mop_t op; op.make_reg( r, size );
+		if ( size < 8 )
+		{
+			auto ins = std::make_unique<minsn_t>( b->cg.insn.ea );
+			ins->opcode = m_xdu;
+			ins->l.assign( op );
+			ins->d.make_reg( b->cg.mba->alloc_kreg( 8 ), 8 );
+			op.assign( ins->d );
+			b->out.push_back( std::move( ins ) );
+		}
+		return b->add_mop( std::move( op ) ); )
 }
 
 // Builtin types, by the index of Rust's `Type` enum.
@@ -308,6 +323,103 @@ extern "C" void ntrays_db_set_setting( uint32 idx, uint64 value ) { try { settin
 extern "C" size_t ntrays_get_bytes( uint64 ea, uint8* buf, size_t size )
 {
 	try { ssize_t n = get_bytes( buf, size, ea ); return n > 0 ? ( size_t ) n : 0; } catch ( ... ) { return 0; }
+}
+
+// Syscall state is owned by the current IDB. The old node is read-only migration input.
+static constexpr size_t SYSCALL_BLOB_LIMIT = 8 * 1024 * 1024;
+static netnode syscall_node( bool create = false ) { return netnode( "$ ntrays-rs syscall", 0, create ); }
+extern "C" ssize_t ntrays_db_syscall_read( uint32 kind, uint64 ea, uint8* buf, size_t cap )
+{
+	try
+	{
+		netnode node = kind == 1 ? netnode( "$ ntrays syscall" ) : syscall_node();
+		if ( node == BADNODE ) return -1;
+		if ( kind == 2 ) return node.supval_ea( ea, buf, cap, 'S' );
+		nodeidx_t slot = 0;
+		if ( kind == 0 )
+		{
+			nodeidx_t active = node.altval( 0 );
+			if ( !active ) return -1;
+			if ( active > 2 ) return -2;
+			slot = active - 1;
+		}
+		else if ( kind != 1 ) return -2;
+		size_t size = node.blobsize( slot, 'B' );
+		if ( size > SYSCALL_BLOB_LIMIT ) return -2;
+		if ( !buf ) return size;
+		if ( cap < size || !size ) return -2;
+		size_t actual = cap;
+		return node.getblob( buf, &actual, slot, 'B' ) && actual == size ? ssize_t( size ) : -2;
+	}
+	catch ( ... ) { return -2; }
+}
+extern "C" bool ntrays_db_syscall_write( uint32 kind, uint64 ea, const uint8* data, size_t size )
+{
+	try
+	{
+		if ( !data || !size || size > SYSCALL_BLOB_LIMIT ) return false;
+		netnode node = syscall_node( true );
+		if ( kind == 2 ) return size <= MAXSPECSIZE && node.supset_ea( ea, data, size, 'S' );
+		if ( kind != 0 ) return false;
+		nodeidx_t active = node.altval( 0 );
+		if ( active > 2 ) return false;
+		nodeidx_t slot = active == 1 ? 1 : 0;
+		if ( !node.setblob( data, size, slot, 'B' ) ) return false;
+		bytevec_t check;
+		if ( node.getblob( &check, slot, 'B' ) != ssize_t( size ) || memcmp( check.begin(), data, size ) ) return false;
+		return node.altset( 0, slot + 1 );  // commit only after the inactive blob has been verified
+	}
+	catch ( ... ) { return false; }
+}
+extern "C" uint64 ntrays_db_syscall_legacy_selection()
+{
+	try { netnode node( "$ ntrays syscall" ); return node == BADNODE ? 0 : node.altval( 0 ); } catch ( ... ) { return 0; }
+}
+extern "C" uint64 ntrays_db_syscall_legacy_site( uint64 ea )
+{
+	try { netnode node( "$ ntrays syscall" ); return node == BADNODE ? 0 : node.altval_ea( ea ); } catch ( ... ) { return 0; }
+}
+extern "C" bool ntrays_db_syscall_legacy_confirmed( const uint8* expected, size_t size )
+{
+	try
+	{
+		netnode node = syscall_node();
+		if ( node == BADNODE ) return false;
+		qstring profile;
+		return node.supstr( &profile, 0, 'M' ) == ssize_t( size ) && profile.length() == size
+			&& memcmp( profile.c_str(), expected, size ) == 0;
+	}
+	catch ( ... ) { return false; }
+}
+extern "C" size_t ntrays_db_syscall_exports()
+{
+	try
+	{
+		if ( !ntrays_db_is_pe64() ) return 0;
+		char name[ QMAXPATH ] = {};
+		if ( get_root_filename( name, sizeof( name ) ) <= 0 ) return 0;
+		return stricmp( name, "ntdll.dll" ) == 0 || stricmp( name, "win32u.dll" ) == 0 ? get_entry_qty() : 0;
+	}
+	catch ( ... ) { return 0; }
+}
+extern "C" ssize_t ntrays_db_syscall_export( size_t index, uint32* number, char* name, size_t cap )
+{
+	try
+	{
+		if ( index >= get_entry_qty() ) return -1;
+		uval_t ord = get_entry_ordinal( index );
+		ea_t ea = get_entry( ord );
+		uint8 stub[ 8 ];
+		static const uint8 head[] = { 0x4C, 0x8B, 0xD1, 0xB8 };
+		if ( ea == BADADDR || get_bytes( stub, sizeof( stub ), ea ) != sizeof( stub ) || memcmp( stub, head, sizeof( head ) ) ) return -1;
+		qstring text;
+		ssize_t len = get_entry_name( &text, ord );
+		if ( len <= 0 || size_t( len ) >= cap ) return -1;
+		memcpy( number, stub + 4, sizeof( *number ) );
+		qstrncpy( name, text.c_str(), cap );
+		return len;
+	}
+	catch ( ... ) { return -1; }
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -525,11 +637,47 @@ static void fix_lvar_types( cfunc_t* cf )
 			v.set_lvar_type( t );
 	}
 }
+
+// KiKernelExit consumes the hardware IRET frame at RSP, not Win64 stack arguments. Otherwise Hex-Rays
+// invents a fifth argument in its callers and later fails to analyze calls to KiRestoreSetContextState.
+static void fix_kernel_exit_type()
+{
+	try
+	{
+		if ( !ntrays_db_is_pe64() || !inf_is_kernel_mode() ) return;
+		ea_t ea = get_name_ea( BADADDR, "KiKernelExit" );
+		if ( ea == BADADDR || is_userti( ea ) ) return;
+		func_t* f = get_func( ea );
+		if ( !f || f->start_ea != ea ) return;
+		// push rax; push rdx; lea rax,[rsp+38h]: RAX points past the five-qword IRET frame.
+		static const uint8 prefix[] = { 0x50, 0x52, 0x48, 0x8D, 0x44, 0x24, 0x38 };
+		uint8 bytes[ sizeof( prefix ) ];
+		if ( get_bytes( bytes, sizeof( bytes ), ea ) != sizeof( bytes ) || memcmp( bytes, prefix, sizeof( prefix ) ) ) return;
+		tinfo_t ti;
+		qstring name;
+		if ( !parse_decl( &ti, &name, nullptr, "void __usercall __noreturn KiKernelExit(void *frame@<rsp>);", PT_SIL )
+			|| !apply_tinfo( ea, ti, TINFO_DEFINITE ) ) return;
+		// Existing databases can retain the bogus argument lists inferred before the exit ABI was known.
+		for ( ea_t from = get_first_fcref_to( ea ); from != BADADDR; from = get_next_fcref_to( ea, from ) )
+		{
+			func_t* caller = get_func( from );
+			if ( caller && !is_userti( caller->start_ea ) && is_type_guessed_by_hexrays( caller->start_ea ) )
+			{
+				del_tinfo( caller->start_ea );
+				mark_cfunc_dirty( caller->start_ea, false );
+			}
+		}
+	}
+	catch ( ... ) {}
+}
+
 static ssize_t idaapi hexrays_events( void*, hexrays_event_t event, va_list va )
 {
 	try
 	{
-		if ( event == hxe_maturity )
+		if ( event == hxe_microcode )  // also handles names arriving from PDB after plugin initialization
+			fix_kernel_exit_type();
+		else if ( event == hxe_maturity )
 		{
 			cfunc_t* cf = va_arg( va, cfunc_t* );
 			if ( ctree_maturity_t( va_arg( va, int ) ) == CMAT_ZERO )
@@ -612,6 +760,7 @@ static plugmod_t* idaapi init()
 		term_hexrays_plugin();
 		return nullptr;
 	}
+	fix_kernel_exit_type();
 	return new ntrays_plugmod( state );
 }
 

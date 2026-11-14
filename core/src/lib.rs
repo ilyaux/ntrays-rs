@@ -2,6 +2,9 @@
 
 pub mod fold;
 pub mod syscall;
+pub mod syscall_state;
+pub mod syscall_presets;
+mod legacy_syscalls;
 mod syscall_table;
 
 use std::ffi::CStr;
