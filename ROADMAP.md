@@ -36,6 +36,6 @@ See [validation](docs/src/validation.md) for what was actually run and what rema
 
 - [ ] **FRED, WRMSRNS, INVLPGB/TLBSYNC** (#405). Handle instructions missing from the decoder using narrowly recognized bytes and semantic fixtures.
 - [ ] **Optional noise reduction** (#406). Investigate WIL feature flags, ETW/TraceLogging and Spectre/KVA patterns with a reviewed before/after corpus.
-- [ ] **NTSTATUS enums and pool-tag literals** (#409). Improve readability while preserving values and types.
+- [x] **NTSTATUS enums and pool-tag literals** (#409), implemented / review. Use the installed Windows status enum and known pool APIs; preserve 32-bit arithmetic and explicit user formats. See [constant formatting](docs/src/literals.md).
 
 Requests and minimal reproducers belong in [GitHub issues](https://github.com/ilyaux/ntrays-rs/issues). The reference numbers above identify the existing project board; they are not GitHub issue numbers.

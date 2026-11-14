@@ -118,6 +118,19 @@ These scripts test production behavior under idalib. Separately check the native
 
 `tools/test_original_lifecycle.py --ida <IDA-dir> --base <base.i64> --plugin <original-NtRays64.dll> --output <new-dir>` opens a copied IDB in two separate processes and saves between openings. It records original NtRays's `$ ntrays` slot 0, plugin actions, and observed decompilation behavior. This tests saved idalib closure, not an interactive GUI shutdown.
 
+## Windows literal formatting
+
+`tools/test_literals.py` builds a synthetic PE with MSVC and decompiles it in two independent idalib processes:
+
+```powershell
+py -3.11 -I tools/test_literals.py `
+  --ida 'C:\Program Files\IDA Professional 9.3' `
+  --plugin 'C:\build\ntrays.dll' `
+  --output "$env:USERPROFILE\ntrays-build\literals-new"
+```
+
+This check requires IDA and MSVC; `--vcvars` can select another MSVC environment script. Fifteen functions cover NTSTATUS returns/comparisons, pool tags, unknown values/call targets, wrong argument positions and explicit user number formats. The test compares ctree operations, arithmetic types and values before/after formatting, normalizing only the explicit enum-to-original-width casts. It also checks repeated output, master/component switches with the normal cache, unchanged saved number formats, and preservation of a conflicting local `MACRO_STATUS` type. Privileged or generated fixture code is not executed.
+
 ## Checks without IDA
 
 ```powershell

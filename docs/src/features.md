@@ -23,9 +23,13 @@ VMCALL and ENCLU use opaque register-state helpers. They do not assume a Hyper-V
 
 Unsupported operand forms return to Hex-Rays. In particular, FS/GS-prefixed forms that require a segment base are deliberately declined by the new address-based lifters. The tested GS-prefixed UMONITOR case remains assembly. See [validation results](validation.md) for what was actually exercised.
 
+## Windows constants
+
+The development checkout also formats typed NTSTATUS return/comparison constants and printable tags in recognized pool calls. See [Windows constant formatting](literals.md) for scope, explicit casts and preservation of user formats.
+
 ## Database changes
 
-The plugin can save named syscall maps and per-address overrides, add the KUSER segment, adjust recognized types, and patch RSB-stuffing gadgets. RSB changes are ordinary IDA patches visible and reversible in **Edit → Patch program**. Unloading or uninstalling the plugin does not automatically undo saved database changes.
+The plugin can save named syscall maps and per-address overrides, add the KUSER segment, import the Windows status enum, adjust recognized types, and patch RSB-stuffing gadgets. RSB changes are ordinary IDA patches visible and reversible in **Edit → Patch program**. Unloading or uninstalling the plugin does not automatically undo saved database changes.
 
 Keep a pristine analyzed IDB for comparisons and run validation on copies. [Legacy migration](migration.md) preserves original syscall nodes rather than deleting them.
 

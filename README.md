@@ -94,7 +94,7 @@ The DLL is `target/release/ntrays.dll`. For checked, packaged builds, use [`tool
 | [`tools/`](tools/) | Reproducible regression runners, fixture probes, generators and release packaging. |
 | [`docs/`](docs/) | mdBook documentation and the SVGs used in this README. |
 
-Syscall snapshots are selected explicitly; a Windows build family alone does not identify a servicing revision. The development checkout adds an **Alt+F8 settings dialog** and **Set syscall API / Set Windows version** actions in pseudocode. These controls are not included in the original `v0.1.0` preview. See [settings](docs/src/settings.md) and [syscall maps](docs/src/syscalls.md) for their behavior and guarded legacy migration.
+Syscall snapshots are selected explicitly; a Windows build family alone does not identify a servicing revision. The development checkout adds an **Alt+F8 settings dialog**, **Set syscall API / Set Windows version** actions in pseudocode, and [named NTSTATUS constants and pool-tag literals](docs/src/literals.md). These additions are not included in the original `v0.1.0` preview. See [settings](docs/src/settings.md) and [syscall maps](docs/src/syscalls.md) for their behavior and guarded legacy migration.
 
 ## Next
 

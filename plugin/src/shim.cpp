@@ -700,6 +700,7 @@ extern "C" void ntrays_db_apply_kernel_exit_type()
 
 #include "settings_ui.hpp"
 #include "syscall_ui.hpp"
+#include "literals.hpp"
 
 struct ntrays_event_context
 {
@@ -725,8 +726,11 @@ static ssize_t idaapi hexrays_events( void* user_data, hexrays_event_t event, va
 		else if ( event == hxe_maturity && ntrays_component_enabled(state, 3) )
 		{
 			cfunc_t* cf = va_arg( va, cfunc_t* );
-			if ( ctree_maturity_t( va_arg( va, int ) ) == CMAT_ZERO )
+			const auto maturity = ctree_maturity_t( va_arg( va, int ) );
+			if ( maturity == CMAT_ZERO )
 				fix_lvar_types( cf );
+            else if ( maturity == CMAT_FINAL )
+                format_windows_literals( cf );
 		}
 	}
 	catch ( ... ) {}

@@ -4,7 +4,7 @@ These controls are in the development checkout; the original `v0.1.0` preview do
 
 Open **Edit → Plugins → NtRays** or press **Alt+F8**. Settings belong to the current IDA database. Closing the dialog with **Cancel** keeps them unchanged; unloading the plugin does not save a disabled state.
 
-The master switch enables or disables future NtRays transformations. Individual controls select instruction lifters, syscall helpers, microcode optimizers, type/ABI fixes, RSB handling, and KUSER mapping. Hvl folding is a separate opt-in because those values are not universally constant. The log-level selector controls routine diagnostic output; internal failures remain visible.
+The master switch enables or disables future NtRays transformations. Individual controls select instruction lifters, syscall helpers, microcode optimizers, type/ABI fixes and [Windows constant formatting](literals.md), RSB handling, and KUSER mapping. Hvl folding is a separate opt-in because those values are not universally constant. The log-level selector controls routine diagnostic output; internal failures remain visible.
 
 Changes invalidate cached decompilation so reopening the same function uses the new options. Save the IDB to retain the selected settings across IDA sessions.
 

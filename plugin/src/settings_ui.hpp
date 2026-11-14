@@ -26,7 +26,7 @@ extern "C" bool ntrays_settings_dialog(void* state)
             "<##Components##Instruction lifters (including paging and trap frames):C>\n"
             "<Typed syscall lifting and syscall menus:C>\n"
             "<Kernel optimizers:C>\n"
-            "<Parent types and recognized kernel-exit ABI:C>\n"
+            "<Type/ABI fixes and Windows constant formatting:C>\n"
             "<RSB patches and flush helper:C>\n"
             "<Create KUSER_SHARED_DATA mapping:C>>\n\n"
             "<Fold Hvl enlightenments (may remove real code paths):C>>\n\n"

@@ -15,6 +15,16 @@ use std::sync::Mutex;
 
 use ntrays_core::{fold, syscall, syscall_state};
 
+#[unsafe(no_mangle)]
+pub extern "C" fn ntrays_pool_tag_argument(name: *const c_char, value: u64) -> i32 {
+    guard("pool_tag_argument", -1, || {
+        if name.is_null() { return -1; }
+        unsafe { CStr::from_ptr(name) }.to_str().ok()
+            .and_then(|name| ntrays_core::literals::pool_tag_argument(name, value))
+            .map_or(-1, |index| index as i32)
+    })
+}
+
 unsafe extern "C" {
     /// Prints to IDA's Output window.
     fn ntrays_msg(text: *const c_char);

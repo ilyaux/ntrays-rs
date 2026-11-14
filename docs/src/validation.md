@@ -29,6 +29,18 @@ An initial GUI run exposed a null parent sentinel in the Hex-Rays call-selection
 
 The native checks cover these interactions. Remaining preset rows, Automatic, invalid input and protected state were exercised through production setters under idalib; every native dialog path was not clicked manually.
 
+## Windows literal formatting (#409)
+
+The subsequent development DLL for IDA 9.3 has SHA-256 `14015e23942fe0f5136e5cee2c50b74ec270de769f07159958718e7eaad94da7`. All three SDK targets compiled and passed PE checks; 27 compiled source files matched each package manifest.
+
+- Fifteen synthetic functions passed in two fresh processes with identical output. Ctree checks preserve values, operations and arithmetic types through the explicit enum-to-original-width casts. Unknown values, ordinary integers, wrong call arguments, explicit user formats, normal-cache toggles, alias ordering and a conflicting local type were checked.
+- The final two fresh Rust kernel passes decompiled 63/63 functions, with zero errors and repeat differences. The no-plugin/original controls were retained from the preceding four-process run after verifying identical input context; they were not rerun for the final alias-selection fix.
+- Two expected previous-reference changes were reviewed: `sub_14050C0E0` and `InitBootProcessor` now show pool-tag literals and NTSTATUS names. Interpreting the new status casts and character literals gives the same numeric and remaining tokens. The old-reference comparison remains recorded as raw FAIL; a separate reviewed reference retains the accepted presentation changes.
+- Six additional real kernel functions decompiled without errors in old/new comparisons. `ExRegisterCallback` and `IoAllocateWorkItem` changed only in their pool tags.
+- The final DLL also passed the 12 settings phases and six syscall-menu state phases under idalib. The Rust core passed 26 tests.
+
+No Computer Use or native GUI checks were run for this feature. IDA 9.4/9.5 have compilation and PE validation only. These results do not extend the earlier GUI coverage to this new DLL.
+
 ## Instruction checks
 
 The extended fixture includes meaningful uses of outputs after the target instruction, rather than only checking helper names. It covers selected VMRESUME status flags; WAITPKG and ENQCMD flags; RDPID/RDPKRU zero extension; opaque VMCALL and SGX register/flag dependencies; address-size overrides; and both halves of XSTATE masks, including the REX.W helper variants.
