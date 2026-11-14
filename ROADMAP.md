@@ -34,7 +34,7 @@ See [validation](docs/src/validation.md) for what was actually run and what rema
 
 ## Later · More kernel patterns
 
-- [ ] **FRED, WRMSRNS, INVLPGB/TLBSYNC** (#405). Handle instructions missing from the decoder using narrowly recognized bytes and semantic fixtures.
+- [x] **FRED, WRMSRNS, INVLPGB/TLBSYNC** (#405), implemented / review. Decode the covered x64 legacy forms without patching bytes; opaque helpers, FRED flow and LKGS addressing are checked by [semantic fixtures](docs/src/decoder.md).
 - [ ] **Optional noise reduction** (#406). Investigate WIL feature flags, ETW/TraceLogging and Spectre/KVA patterns with a reviewed before/after corpus.
 - [x] **NTSTATUS enums and pool-tag literals** (#409), implemented / review. Use the installed Windows status enum and known pool APIs; preserve 32-bit arithmetic and explicit user formats. See [constant formatting](docs/src/literals.md).
 

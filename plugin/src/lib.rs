@@ -16,6 +16,15 @@ use std::sync::Mutex;
 use ntrays_core::{fold, syscall, syscall_state};
 
 #[unsafe(no_mangle)]
+pub extern "C" fn ntrays_decode_extensions(bytes: *const u8, size: usize, out: *mut ntrays_core::decode::Decoded) -> bool {
+    guard("decode_extensions", false, || {
+        if bytes.is_null() || out.is_null() || size > 15 { return false; }
+        let Some(decoded) = ntrays_core::decode::decode(unsafe { std::slice::from_raw_parts(bytes, size) }) else { return false };
+        unsafe { *out = decoded }; true
+    })
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn ntrays_pool_tag_argument(name: *const c_char, value: u64) -> i32 {
     guard("pool_tag_argument", -1, || {
         if name.is_null() { return -1; }

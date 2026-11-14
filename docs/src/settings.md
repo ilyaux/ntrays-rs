@@ -8,6 +8,8 @@ The master switch enables or disables future NtRays transformations. Individual 
 
 Changes invalidate cached decompilation so reopening the same function uses the new options. Save the IDB to retain the selected settings across IDA sessions.
 
+The [instruction decoder extension](decoder.md) remains active while the plugin is loaded so FRED instructions keep their correct identity. Master/instruction switches gate helper generation; disabled helpers use assembly fallback.
+
 Disabling a component does not undo types, RSB patches or other analysis changes already stored in the database. RSB patches remain visible in **Edit → Patch program**. Use a pristine database copy when comparing enabled and disabled output.
 
 An unknown or damaged settings record is preserved and treated as read-only. NtRays does not reinterpret unsupported values as valid preferences or overwrite them merely because the database was opened.

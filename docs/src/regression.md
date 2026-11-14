@@ -131,6 +131,17 @@ py -3.11 -I tools/test_literals.py `
 
 This check requires IDA and MSVC; `--vcvars` can select another MSVC environment script. Fifteen functions cover NTSTATUS returns/comparisons, pool tags, unknown values/call targets, wrong argument positions and explicit user number formats. The test compares ctree operations, arithmetic types and values before/after formatting, normalizing only the explicit enum-to-original-width casts. It also checks repeated output, master/component switches with the normal cache, unchanged saved number formats, and preservation of a conflicting local `MACRO_STATUS` type. Privileged or generated fixture code is not executed.
 
+## Instruction decoder fixture
+
+```powershell
+py -3.11 -I tools/test_decoder.py `
+  --ida 'C:\Program Files\IDA Professional 9.3' `
+  --plugin 'C:\build\ntrays.dll' `
+  --output "$env:USERPROFILE\ntrays-build\decoder-new"
+```
+
+This requires IDA/Hex-Rays and MSVC. The runner loads the plugin before autoanalysis, assembles raw opcode bytes into a synthetic PE and decompiles 23 functions twice. It checks exact helper input widths/values, preserved GPRs/flags, FRED no-return flow and frame stores, ordinary CLAC passthrough, LKGS word loads/addressing, INVLPGB/TLBSYNC ordering, normal-cache toggles and zero patched-byte records. Twelve LKGS operand cases are compared with native `MOV r16,r/m16` decoding; the comparison allows equivalent displacement display widths. No fixture instruction is executed.
+
 ## Checks without IDA
 
 ```powershell

@@ -41,6 +41,18 @@ The subsequent development DLL for IDA 9.3 has SHA-256 `14015e23942fe0f5136e5cee
 
 No Computer Use or native GUI checks were run for this feature. IDA 9.4/9.5 have compilation and PE validation only. These results do not extend the earlier GUI coverage to this new DLL.
 
+## Decoder extensions (#405)
+
+The next development DLL, SHA-256 `f52643199302a6208b735a1114d213d130a26f07ba07c0e8c13c01e0e7999d7e` for IDA 9.3, passed:
+
+- 23 synthetic instruction functions in two fresh processes, with identical results; 12 LKGS addressing comparisons against native MOV operand decoding and one segment-boundary case.
+- Exact helper input widths/values, preserved GPRs/flags, FRED no-return flow and retained frame stores, GS/stack/relative word reads, INVLPGB/TLBSYNC ordering, ordinary CLAC passthrough, and normal-cache master/component toggles.
+- 51 previous lifter cases with identical repeats; 29 Rust core tests; 12 settings phases, six syscall-menu state phases and 15 literal-format functions.
+- A new four-process kernel run: 63/63, errors 0, repeat differences 0, changes from the reviewed #409 reference 0.
+- SDK 9.3/9.4/9.5 builds and PE checks; all 29 compiled source files matched each package manifest. Runtime remains IDA 9.3 only; no native GUI check was performed.
+
+Executable-section scans of `ntoskrnl` builds 26100.9711 and 26100.9974 found no byte matches for the covered forms, including the checked prefix variations. This limits direct new-instruction evidence to the synthetic fixture. The baseline IDA 9.3 probe misidentified both FRED returns as CLAC and failed to decode the other covered forms; the extension fixes those observations. See [decoder scope](decoder.md).
+
 ## Instruction checks
 
 The extended fixture includes meaningful uses of outputs after the target instruction, rather than only checking helper names. It covers selected VMRESUME status flags; WAITPKG and ENQCMD flags; RDPID/RDPKRU zero extension; opaque VMCALL and SGX register/flag dependencies; address-size overrides; and both halves of XSTATE masks, including the REX.W helper variants.

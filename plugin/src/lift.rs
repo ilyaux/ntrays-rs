@@ -38,6 +38,12 @@ pub fn lift(e: &mut Emitter, insn: Insn, state: *mut std::ffi::c_void) -> bool {
         Insn::Uiret => uiret(e),
         Insn::Encls => register_state_call(e, c"__encls_regs", SGX_REGS, true),
         Insn::Enclu => register_state_call(e, c"__enclu_regs", OPAQUE_REGS, true),
+        Insn::Erets => fred_return(e, c"__erets"),
+        Insn::Eretu => fred_return(e, c"__eretu"),
+        Insn::Lkgs => lkgs(e),
+        Insn::Wrmsrns => wrmsrns(e),
+        Insn::Invlpgb => invlpgb(e),
+        Insn::Tlbsync => simple(e, c"__tlbsync"),
         Insn::Rcl => rotate_carry(e, c"__rcl"),
         Insn::Rcr => rotate_carry(e, c"__rcr"),
         Insn::Iretq => iretq(e),
@@ -95,6 +101,52 @@ fn simple_helper(insn: Insn) -> Option<&'static CStr> {
 
 fn operand_count(info: &InsnInfo) -> usize {
     info.ops.iter().take_while(|o| o.ty != opnd::VOID).count()
+}
+
+fn fred_return(e: &mut Emitter, helper: &'static CStr) -> bool {
+    let (void, pointer) = (e.ty(Builtin::Void), e.ty(Builtin::PtrVoid));
+    let call = e.call(helper, void, NORET);
+    let frame = e.reg(reg::SP, 8);
+    e.arg(&call, frame, pointer, c"frame");
+    e.emit_call(call);
+    true
+}
+
+fn lkgs(e: &mut Emitter) -> bool {
+    if e.insn().ops[0].dtype != 1 { return false; }
+    let (void, word) = (e.ty(Builtin::Void), e.ty(Builtin::I16));
+    let call = e.call(c"__lkgs", void, 0);
+    let selector = e.operand(0);
+    e.arg(&call, selector, word, c"selector");
+    e.emit_call(call);
+    true
+}
+
+fn wrmsrns(e: &mut Emitter) -> bool {
+    let (void, index_type, value_type) = (e.ty(Builtin::Void), e.ty(Builtin::I32), e.ty(Builtin::I64));
+    let call = e.call(c"__wrmsrns", void, 0);
+    let (index, value) = (e.reg(reg::CX, 4), e.reg_pair(reg::AX, reg::DX, 4));
+    e.arg(&call, index, index_type, c"msr");
+    e.arg(&call, value, value_type, c"value");
+    e.emit_call(call);
+    true
+}
+
+fn invlpgb(e: &mut Emitter) -> bool {
+    let info = e.insn();
+    let mut bytes = [0u8; 15];
+    if info.size == 0 || info.size > 15 { return false; }
+    let Some(decoded) = ntrays_core::decode::decode(get_bytes(info.ea, &mut bytes[..info.size as usize])) else { return false };
+    let address = if decoded.address32 != 0 { Builtin::I32 } else { Builtin::I64 };
+    let (void, address_type, i32t) = (e.ty(Builtin::Void), e.ty(address), e.ty(Builtin::I32));
+    let call = e.call(c"__invlpgb", void, 0);
+    let descriptor = e.reg(reg::AX, address.size());
+    let (count, ids) = (e.reg(reg::CX, 4), e.reg(reg::DX, 4));
+    e.arg(&call, descriptor, address_type, c"address_flags");
+    e.arg(&call, count, i32t, c"page_count");
+    e.arg(&call, ids, i32t, c"asid_pcid");
+    e.emit_call(call);
+    true
 }
 
 /// `helper(op0, op1, ...)`: immediates and registers by value, memory operands by address.

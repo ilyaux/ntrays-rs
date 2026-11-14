@@ -9,6 +9,7 @@ fn main() {
     println!("cargo:rerun-if-changed=src/settings_ui.hpp");
     println!("cargo:rerun-if-changed=src/syscall_ui.hpp");
     println!("cargo:rerun-if-changed=src/literals.hpp");
+    println!("cargo:rerun-if-changed=src/decoder.hpp");
     let sdk = PathBuf::from(env::var("IDASDK").expect("set IDASDK to the IDA SDK `src` folder"));
     let pro_h = fs::read_to_string(sdk.join("include/pro.h")).expect("IDASDK has no include/pro.h");
     let version = pro_h

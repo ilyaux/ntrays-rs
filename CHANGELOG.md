@@ -5,6 +5,7 @@
 - Per-database settings dialog with a master switch, component controls, Hvl opt-in and log levels. Plugin unload preserves the chosen enabled state.
 - Pseudocode actions for syscall API overrides, explicit Windows snapshots and ntdll/win32u map imports.
 - Named NTSTATUS return/comparison constants from IDA's Windows type library and printable pool tags in recognized allocation/free calls. Explicit number formats and arithmetic widths are preserved.
+- Byte decoding and opaque helpers for legacy ERETS/ERETU, LKGS, WRMSRNS and INVLPGB/TLBSYNC forms on x64. FRED returns are no longer misidentified as CLAC; decoding and helpers do not patch the binary.
 
 ## 0.1.0 — 2026-11-14 · Preview
 

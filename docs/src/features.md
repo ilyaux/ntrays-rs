@@ -21,7 +21,9 @@ Additional lifters cover VMFUNC, VMRESUME, VMCALL, RDPID, RDPKRU/WRPKRU, XSAVEC/
 
 VMCALL and ENCLU use opaque register-state helpers. They do not assume a Hyper-V ABI or an enclave application ABI. A helper name is not a promise to model every architectural state transition or SGX leaf.
 
-Unsupported operand forms return to Hex-Rays. In particular, FS/GS-prefixed forms that require a segment base are deliberately declined by the new address-based lifters. The tested GS-prefixed UMONITOR case remains assembly. See [validation results](validation.md) for what was actually exercised.
+The development checkout also adds [decoder extensions](decoder.md) and helpers for legacy FRED, LKGS, WRMSRNS and broadcast TLB instructions. LKGS uses native word-operand loading, including a tested GS-relative read.
+
+Unsupported operand forms return to Hex-Rays. FS/GS-prefixed forms that require a segment base are deliberately declined by selected address-only lifters. The tested GS-prefixed UMONITOR case remains assembly. See [validation results](validation.md) for what was actually exercised.
 
 ## Windows constants
 

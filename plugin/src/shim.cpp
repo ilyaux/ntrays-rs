@@ -33,8 +33,12 @@
 #define AS_NN( n ) NN_##n,
 #define AS_M( n ) m_##n,
 #define AS_NAME( n ) #n,
-static const uint16 insn_itypes[] = { NTRAYS_INSNS( AS_NN ) };
-static const char* const insn_names[] = { NTRAYS_INSNS( AS_NAME ) };
+#define NTRAYS_MODERN_INSNS(X) X(erets) X(eretu) X(lkgs) X(wrmsrns) X(invlpgb) X(tlbsync)
+enum : uint16 { MODERN_FIRST = CUSTOM_INSN_ITYPE + 0x4e0, MODERN_erets = MODERN_FIRST,
+    MODERN_eretu, MODERN_lkgs, MODERN_wrmsrns, MODERN_invlpgb, MODERN_tlbsync };
+#define AS_MODERN(n) MODERN_##n,
+static const uint16 insn_itypes[] = { NTRAYS_INSNS( AS_NN ) NTRAYS_MODERN_INSNS(AS_MODERN) };
+static const char* const insn_names[] = { NTRAYS_INSNS( AS_NAME ) NTRAYS_MODERN_INSNS(AS_NAME) };
 static const mcode_t op_codes[] = { NTRAYS_OPS( AS_M ) };
 static const char* const op_names[] = { NTRAYS_OPS( AS_NAME ) };
 
@@ -85,6 +89,13 @@ struct builder
 extern "C" uint32 ntrays_mop_reg( builder* b, int reg, int size )  // x86 register (intel.hpp RegNo)
 {
 	GUARDED( NONE, mop_t op; op.make_reg( reg2mreg( reg ), size ); return b->add_mop( std::move( op ) ); )
+}
+extern "C" uint32 ntrays_mop_operand(builder* b, int opnum)
+{
+    GUARDED(NONE, const mreg_t r = b->cg.load_operand(opnum);
+        if (b->bad(r == mr_none)) return NONE;
+        mop_t op; op.make_reg(r, get_dtype_size(b->cg.insn.ops[opnum].dtype));
+        return b->add_mop(std::move(op)); )
 }
 extern "C" uint32 ntrays_mop_kreg( builder* b, int size )  // fresh kernel (temporary) register
 {
@@ -701,6 +712,7 @@ extern "C" void ntrays_db_apply_kernel_exit_type()
 #include "settings_ui.hpp"
 #include "syscall_ui.hpp"
 #include "literals.hpp"
+#include "decoder.hpp"
 
 struct ntrays_event_context
 {
@@ -784,6 +796,7 @@ struct ui_listener : event_listener_t
 struct ntrays_plugmod : plugmod_t
 {
 	void* state;
+	modern_decoder decoder; // destroyed last, after Hex-Rays releases its instruction trees
 	dispatch_filter filter;
 	dispatch_optinsn optinsn;
 	dispatch_optblock optblock;
@@ -792,7 +805,7 @@ struct ntrays_plugmod : plugmod_t
     std::unique_ptr<syscall_actions> syscalls_ui;
     ntrays_event_context events;
 
-	explicit ntrays_plugmod( void* s ) : state( s ), filter( s ), optinsn( s ), optblock( s ), names( s ), ui( s ),
+	explicit ntrays_plugmod( void* s ) : state( s ), decoder(this), filter( s ), optinsn( s ), optblock( s ), names( s ), ui( s ),
         syscalls_ui(std::make_unique<syscall_actions>(s, this)), events{ s, syscalls_ui.get() }
 	{
 		hook_event_listener( HT_IDB, &names );  // owned by this plugmod
@@ -801,10 +814,12 @@ struct ntrays_plugmod : plugmod_t
 		install_optinsn_handler( &optinsn );
 		install_optblock_handler( &optblock );
 		install_hexrays_callback( hexrays_events, &events );
+		clear_cached_cfuncs();
 	}
 	~ntrays_plugmod() override
 	{
 		remove_hexrays_callback( hexrays_events, &events );
+		clear_cached_cfuncs();
 		remove_optblock_handler( &optblock );
 		remove_optinsn_handler( &optinsn );
 		install_microcode_filter( &filter, false );

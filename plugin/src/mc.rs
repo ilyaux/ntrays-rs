@@ -73,6 +73,7 @@ insns! {
     Vmfunc = "vmfunc", Vmresume = "vmresume", Vmcall = "vmcall", Rdpid = "rdpid", Rdpkru = "rdpkru",
     Wrpkru = "wrpkru", Xsavec = "xsavec", Xsaveopt = "xsaveopt", Serialize = "serialize", Umonitor = "umonitor", Umwait = "umwait",
     Tpause = "tpause", Enqcmd = "enqcmd", Uiret = "uiret", Senduipi = "senduipi", Encls = "encls", Enclu = "enclu",
+    Erets = "erets", Eretu = "eretu", Lkgs = "lkgs", Wrmsrns = "wrmsrns", Invlpgb = "invlpgb", Tlbsync = "tlbsync",
 }
 
 impl Insn {
@@ -170,6 +171,7 @@ pub struct InsnInfo {
 
 unsafe extern "C" {
     fn ntrays_mop_reg(b: *mut c_void, reg: i32, size: i32) -> u32;
+    fn ntrays_mop_operand(b: *mut c_void, opnum: i32) -> u32;
     fn ntrays_mop_kreg(b: *mut c_void, size: i32) -> u32;
     fn ntrays_mop_num(b: *mut c_void, value: u64, size: i32) -> u32;
     fn ntrays_mop_reg_pair(b: *mut c_void, lo: i32, hi: i32, halfsize: i32) -> u32;
@@ -213,6 +215,9 @@ impl Emitter<'_> {
 
     pub fn reg(&mut self, reg: i32, size: i32) -> Mop {
         Mop(unsafe { ntrays_mop_reg(self.b, reg, size) })
+    }
+    pub fn operand(&mut self, opnum: i32) -> Mop {
+        Mop(unsafe { ntrays_mop_operand(self.b, opnum) })
     }
     pub fn kreg(&mut self, size: i32) -> Mop {
         Mop(unsafe { ntrays_mop_kreg(self.b, size) })

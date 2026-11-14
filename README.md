@@ -45,7 +45,7 @@ Compared with upstream, the port corrects RCL/RCR direction and immediate counts
 
 <img src="docs/readme/verification.svg" width="100%" alt="IDA 9.3: 63 of 63 selected kernel functions decompiled, zero differences between repeated candidate passes. 51 targeted native lifter cases. Three SDK build targets; runtime on IDA 9.4 and 9.5 is pending.">
 
-The kernel sample uses Windows build **26100.9711**. The final integrated DLL decompiled all 63 selected functions in two fresh candidate processes with identical output. Four expected XSTATE changes were reviewed against the prior baseline; the no-plugin and original-plugin controls were reused after verifying their input fingerprints. This is a regression sample, not a claim of coverage for every Windows build or instruction.
+The kernel sample uses Windows build **26100.9711**. The initial integrated DLL decompiled all 63 selected functions in two fresh candidate processes with identical output. Four expected XSTATE changes were reviewed against the prior baseline; that run reused fingerprint-checked no-plugin and original-plugin controls. Subsequent development changes, including the [decoder extensions](docs/src/decoder.md), have their own runs recorded in [validation](docs/src/validation.md). This is a regression sample, not a claim of coverage for every Windows build or instruction.
 
 | IDA Pro | Windows x64 build | Licensed runtime check |
 |---|---|---|
