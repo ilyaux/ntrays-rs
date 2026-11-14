@@ -23,5 +23,5 @@
   <text x="836" y="169" font-size="19">Separate Windows x64 DLLs</text>
   <text x="836" y="204" font-size="15" class="mono muted">9.3 / 9.4 / 9.5</text>
   <text x="836" y="228" font-size="15" class="accent">9.4 / 9.5 runtime checks pending</text>
-  <text x="36" y="269" font-size="11" class="mono muted">v0.2.0 IMPLEMENTATION CHECKS · 2026-11-14 · SCOPE AND REPRODUCTION IN THE DOCUMENTATION</text>
+  <text x="36" y="269" font-size="11" class="mono muted">v0.2.0 RELEASE CHECKS · 2026-11-14 · SCOPE AND REPRODUCTION IN THE DOCUMENTATION</text>
 </svg>

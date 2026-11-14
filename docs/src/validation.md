@@ -2,6 +2,25 @@
 
 This is the local validation record as of **2026-11-14**. It describes selected fixtures, not a universal compatibility claim. Licensed IDA databases, binaries, and pseudocode remain outside the repository; use the [regression procedure](regression.md) with your own authorized fixtures to reproduce the checks.
 
+## v0.2.0 published packages
+
+[v0.2.0 Preview](https://github.com/ilyaux/ntrays-rs/releases/tag/v0.2.0) was built from commit [`2e31eff`](https://github.com/ilyaux/ntrays-rs/commit/2e31effa6d7c6f148bb2257ab5e8b32d6b647fa3), integrating settings/syscall menus, Windows literals and decoder extensions. The [three-SDK main CI](https://github.com/ilyaux/ntrays-rs/actions/runs/43610279183), [release workflow](https://github.com/ilyaux/ntrays-rs/actions/runs/43610287808) and [Pages deployment](https://github.com/ilyaux/ntrays-rs/actions/runs/43610279194) succeeded. The live site was checked for the new version.
+
+All six published assets were downloaded again. ZIP and DLL checksums, version, tagged source revision, all 29 compiled source fingerprints (allowing Git LF/CRLF conversion), common build recipe and notices matched. Package entries contain no local profile paths in UTF-8/UTF-16 or working database/build-log files.
+
+The **downloaded IDA 9.3 release DLL**, SHA-256 `509aafe4139325193d9f9e1b783065b9f71a52a4edacb8e575af0c21eba16413`, passed a new licensed headless run:
+
+| Check | Release DLL result |
+|---|---|
+| Kernel regression, four fresh processes | 63/63 functions; 0 errors; 0 repeat differences; 0 changes from the reviewed literal-formatting reference |
+| Decoder extensions | 23 functions in two processes; 12 LKGS addressing comparisons and a segment-boundary case |
+| Existing lifters | 51 cases in two processes; identical output; the intentional GS UMONITOR assembly fallback remains |
+| Windows literals | 15 functions in two processes; identical output and preserved values/types/formats |
+| Settings and syscall state | 12 settings phases and six syscall-menu phases; save/reopen/cache/rebase guards passed |
+| Hosted offline checks | 29 Rust core tests, four regression-comparator tests and generated-preset validation passed on all three SDK targets |
+
+This recheck used the packaged DLL, not a local rebuild. It does not add native GUI coverage to the earlier interaction checks below. IDA 9.4/9.5 remain compilation/PE/package checks only; fixture instructions were not executed on hardware. The historical checks below explain the reviewed reference and earlier GUI limits.
+
 ## Runtime environment
 
 Runtime checks used IDA **9.3.260421** and Hex-Rays **9.3.0.260421** on Windows x64. The main kernel fixture comes from build `10.0.26100.9711`. The instruction fixture was analyzed as a 64-bit AMD64 PE in kernel mode. Privileged instructions were decompiled, never executed on the CPU.

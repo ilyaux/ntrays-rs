@@ -8,7 +8,7 @@
 - Byte decoding and opaque helpers for legacy ERETS/ERETU, LKGS, WRMSRNS and INVLPGB/TLBSYNC forms on x64. FRED returns are no longer misidentified as CLAC; decoding and helpers do not patch the binary.
 - Versioned package manifests, changelog-driven release notes and remapped build paths in release DLLs. The README, roadmap and installation/feature guides cover the integrated release.
 
-The integrated implementation passed a fresh four-process IDA 9.3 kernel regression: **63/63** functions, zero errors, zero repeat differences and zero changes from the reviewed literal-formatting reference. Focused checks cover 23 decoder functions, 12 LKGS addressing comparisons, 51 existing lifter cases, 12 settings phases, six syscall-menu phases and 15 literal-formatting functions; the Rust core has 29 tests. SDK 9.4/9.5 compile and PE checks pass; licensed runtime checks remain pending. Instructions are analyzed, not executed on hardware. See [validation](docs/src/validation.md) for exact DLL hashes, earlier GUI coverage and remaining limits.
+The published IDA 9.3 DLL passed a fresh four-process kernel regression: **63/63** functions, zero errors, zero repeat differences and zero changes from the reviewed literal-formatting reference. Focused checks cover 23 decoder functions, 12 LKGS addressing comparisons, 51 existing lifter cases, 12 settings phases, six syscall-menu phases and 15 literal-formatting functions; the Rust core has 29 tests. SDK 9.4/9.5 compile and PE checks pass; licensed runtime checks remain pending. Instructions are analyzed, not executed on hardware. See [validation](docs/src/validation.md) for exact DLL hashes, earlier GUI coverage and remaining limits.
 
 ## 0.1.0 — 2026-11-14 · Preview
 

@@ -47,7 +47,7 @@ Compared with upstream, the port corrects RCL/RCR direction and immediate counts
 
 <img src="docs/readme/verification.svg" width="100%" alt="IDA 9.3: 63 of 63 selected kernel functions decompiled, zero differences between repeated candidate passes. 51 targeted native lifter cases. Three SDK build targets; runtime on IDA 9.4 and 9.5 is pending.">
 
-The integrated implementation passed a fresh four-process kernel run on Windows build **26100.9711**: all 63 selected functions decompiled, with zero errors, repeat differences or changes from the reviewed reference. Focused suites cover 23 new decoder functions, 12 LKGS addressing comparisons, 51 existing lifter cases, settings, syscall menus and Windows literal formatting. The Rust core has 29 tests. Earlier XSTATE and presentation changes were reviewed before accepting the current reference. See [validation](docs/src/validation.md) for exact builds, GUI scope and limitations. This sample does not cover every Windows build or instruction.
+The published v0.2.0 DLL passed a fresh four-process kernel run on Windows build **26100.9711**: all 63 selected functions decompiled, with zero errors, repeat differences or changes from the reviewed reference. Focused suites cover 23 new decoder functions, 12 LKGS addressing comparisons, 51 existing lifter cases, settings, syscall menus and Windows literal formatting. The Rust core has 29 tests. Earlier XSTATE and presentation changes were reviewed before accepting the current reference. See [validation](docs/src/validation.md) for exact builds, GUI scope and limitations. This sample does not cover every Windows build or instruction.
 
 | IDA Pro | Windows x64 build | Licensed runtime check |
 |---|---|---|
