@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Per-database settings dialog with a master switch, component controls, Hvl opt-in and log levels. Plugin unload preserves the chosen enabled state.
+- Pseudocode actions for syscall API overrides, explicit Windows snapshots and ntdll/win32u map imports.
+
 ## 0.1.0 — 2026-11-14 · Preview
 
 Initial public Rust port of [NtRays](https://github.com/can1357/NtRays), targeting IDA Pro 9.3, 9.4 and 9.5 on Windows x64.

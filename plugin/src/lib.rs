@@ -4,6 +4,8 @@
 //! Output window, and the hook falls back to doing nothing.
 
 mod lift;
+mod settings;
+mod syscall_ui;
 #[allow(dead_code)] // the builder API is ahead of the lifters ported so far
 mod mc;
 
@@ -62,7 +64,6 @@ mod db {
         fn ntrays_db_setting(idx: u32) -> u64;
         fn ntrays_db_set_setting(idx: u32, value: u64);
         fn ntrays_db_name_ea(name: *const std::ffi::c_char) -> u64;
-        fn ntrays_db_enable_kuser();
         fn ntrays_add_parent_type(child: *const std::ffi::c_char, parent: *const std::ffi::c_char);
         fn ntrays_db_fix_parent_types() -> i32;
         fn ntrays_db_syscall_read(kind: u32, ea: u64, buf: *mut u8, cap: usize) -> isize;
@@ -83,19 +84,14 @@ mod db {
         unsafe { ntrays_db_setting(idx) }
     }
 
-    /// Creates the KUSER_SHARED_DATA segment for the binary's mode and keeps it in place across rebases.
-    pub fn enable_kuser() {
-        unsafe { ntrays_db_enable_kuser() }
-    }
-
     /// Registers the K→E parent type pairs (used for local variables during decompilation) and rewrites
     /// struct fields in the database's types once.
-    pub fn use_parent_types() {
+    pub fn use_parent_types(log_level: u32) {
         for (child, parent) in ntrays_core::PARENT_TYPES {
             unsafe { ntrays_add_parent_type(child.as_ptr(), parent.as_ptr()) };
         }
         let fixed = unsafe { ntrays_db_fix_parent_types() };
-        if fixed > 0 {
+        if fixed > 0 && log_level >= 1 {
             super::msg(&format!("[ntrays-rs] retyped {fixed} struct fields to _ETHREAD / _EPROCESS
 "));
         }
@@ -154,7 +150,7 @@ mod db {
 
     /// Patches every RSB-stuffing gadget once per database, as a regular IDA patch (Edit > Patch program shows it
     /// and can revert it). Without this, ISRs containing the gadget do not decompile at all.
-    pub fn patch_rsb_gadgets() {
+    pub fn patch_rsb_gadgets(log_level: u32) {
         if unsafe { ntrays_db_setting(RSB_PATCHED) } != 0 {
             return;
         }
@@ -171,7 +167,7 @@ mod db {
             count += 1;
         }
         unsafe { ntrays_db_set_setting(RSB_PATCHED, 1) };
-        if count != 0 {
+        if count != 0 && log_level >= 1 {
             super::msg(&format!("[ntrays-rs] patched {count} RSB flush gadgets (revertible in Edit > Patch program)\n"));
         }
     }
@@ -184,7 +180,7 @@ struct DbSyscalls {
 }
 
 impl DbSyscalls {
-    fn load() -> Self {
+    fn load(log_level: u32) -> Self {
         let mut writable = true;
         let legacy_confirmed = db::legacy_confirmed();
         match db::syscall_read(0, 0).and_then(|blob| blob.map(|b| syscall_state::State::decode(&b)).transpose()) {
@@ -211,7 +207,7 @@ impl DbSyscalls {
         };
         if state.map.is_empty() && (selection == 0 || !legacy_confirmed) {
             state.map = db::exported_syscalls();
-            if !state.map.is_empty() { msg(&format!("[ntrays-rs] extracted {} syscall names from IDB exports\n", state.map.len())); }
+            if !state.map.is_empty() && log_level >= 1 { msg(&format!("[ntrays-rs] extracted {} syscall names from IDB exports\n", state.map.len())); }
         }
         if writable && ((legacy_confirmed && selection != 0) || !state.map.is_empty()) {
             match state.encode() {
@@ -260,9 +256,11 @@ pub(crate) fn syscall_info(state: *mut c_void, ea: u64, stub_id: Option<u32>, fu
 
 /// Per-database plugin state.
 struct Plugin {
+    supported: bool,
     /// Fold rules resolved to addresses; `None` until first use and after any rename in the database.
     folds: Mutex<Option<fold::Resolved>>,
     syscalls: Mutex<DbSyscalls>,
+    settings: Mutex<settings::Loaded>,
 }
 
 #[unsafe(no_mangle)]
@@ -272,14 +270,14 @@ extern "C" fn ntrays_init() -> *mut c_void {
             msg("[ntrays] shim and Rust tables differ; plugin not loaded\n");
             return std::ptr::null_mut();
         }
-        msg(&format!("[ntrays-rs] loaded, built for IDA SDK {}\n", env!("IDA_SDK_VERSION")));
-        if db::is_pe64() {
-            db::patch_rsb_gadgets();
-            db::enable_kuser();
-            db::use_parent_types();
+        let options = settings::Loaded::load();
+        if options.value.log_level >= 1 {
+            msg(&format!("[ntrays-rs] loaded, built for IDA SDK {}\n", env!("IDA_SDK_VERSION")));
         }
-        let syscalls = if db::is_pe64() { DbSyscalls::load() } else { DbSyscalls { state: syscall_state::State::default(), writable: false, legacy_confirmed: false } };
-        Box::into_raw(Box::new(Plugin { folds: Mutex::new(None), syscalls: Mutex::new(syscalls) })).cast()
+        let syscalls = if db::is_pe64() && options.value.component(1) { DbSyscalls::load(options.value.log_level) } else { DbSyscalls { state: syscall_state::State::default(), writable: false, legacy_confirmed: false } };
+        let plugin = Box::new(Plugin { supported: db::is_pe64(), folds: Mutex::new(None), syscalls: Mutex::new(syscalls), settings: Mutex::new(options) });
+        settings::apply_database_options(&plugin);
+        Box::into_raw(plugin).cast()
     })
 }
 
@@ -289,15 +287,24 @@ extern "C" fn ntrays_term(state: *mut c_void) {
 }
 
 #[unsafe(no_mangle)]
-extern "C" fn ntrays_run(_state: *mut c_void, _arg: usize) -> bool {
-    true
+extern "C" fn ntrays_run(state: *mut c_void, arg: usize) -> bool {
+    guard("run", false, || {
+        // The packed versioned value is also accepted for scripted per-IDB configuration.
+        if arg != 0 { return settings::ntrays_settings_apply(state, arg as u64); }
+        unsafe { settings::ntrays_settings_dialog(state) }
+    })
 }
 
 #[unsafe(no_mangle)]
 extern "C" fn ntrays_lift(state: *mut c_void, builder: *mut c_void, kind: u32) -> bool {
     guard("lift", false, || {
+        let Some(plugin) = (unsafe { state.cast::<Plugin>().as_ref() }) else { return false };
         let Some(insn) = mc::Insn::from_index(kind) else { return false };
         let mut e = unsafe { mc::Emitter::new(builder) };
+        let component = if insn == mc::Insn::Syscall || (insn == mc::Insn::Int && e.insn().ops[0].value == 0x2e) { 1 }
+            else if insn == mc::Insn::Nop { 4 } else { 0 };
+        if !settings::component(plugin, component) { return false; }
+        if settings::value(plugin).log_level >= 2 { msg(&format!("[ntrays-rs] lift {insn:?} at {:X}\n", e.insn().ea)); }
         lift::lift(&mut e, insn, state)
     })
 }
@@ -307,9 +314,11 @@ extern "C" fn ntrays_fold(state: *mut c_void, site: u32, ea: u64, value: u64) ->
     guard("fold", false, || {
         let Some(site) = fold::Site::from_u32(site) else { return false };
         let plugin = unsafe { &*state.cast::<Plugin>() };
+        if !settings::component(plugin, 2) { return false; }
+        let options = settings::value(plugin);
         let mut folds = plugin.folds.lock().unwrap_or_else(|e| e.into_inner());
         folds
-            .get_or_insert_with(|| fold::Resolved::new(db::setting(db::FOLD_HVL) != 0, db::name_ea))
+            .get_or_insert_with(|| fold::Resolved::new(options.fold_hvl, db::name_ea))
             .folds(site, ea, value)
     })
 }

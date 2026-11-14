@@ -33,4 +33,4 @@ Keep a pristine analyzed IDB for comparisons and run validation on copies. [Lega
 
 The runtime suite covers IDA 9.3 and specific Windows x64 fixtures. It does not establish compatibility with every IDA update, Windows servicing revision, operand encoding, or function order. IDA 9.4/9.5 currently have build validation only. AMD SVM instructions already handled by the tested IDA configuration are left to Hex-Rays rather than receiving redundant lifters.
 
-The plugin has no completed preset-selection UI. Available snapshot data is described in [maps and presets](syscalls.md); planned UI or new transformations should not be inferred from that data.
+The development checkout includes [per-database settings](settings.md) and [syscall selection actions](syscalls.md#select-a-map-or-api-in-ida). These controls are not present in the original `v0.1.0` preview. Further transformations are tracked in the roadmap.

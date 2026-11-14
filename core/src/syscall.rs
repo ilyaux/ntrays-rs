@@ -10,6 +10,11 @@ pub struct Api {
     pub args: &'static [(&'static str, &'static str)],
 }
 
+/// Known signatures in stable name order, for explicit API selection.
+pub fn apis() -> &'static [Api] {
+    crate::syscall_table::APIS
+}
+
 /// Signature of an Nt*/Zw* API, if known.
 pub fn find_api(name: &str) -> Option<&'static Api> {
     let name = nt_name(name)?;

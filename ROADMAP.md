@@ -7,7 +7,7 @@ This public plan is a snapshot of the project board on **2026-11-14**. “Implem
 | Stage | Goal | Status |
 |---|---|---|
 | **v0.1 · Preview** | Rust port, reproducible regression, versioned Windows packages and documentation | Implemented / review |
-| **v0.2 · Daily workflow** | Settings and syscall selection in IDA; runtime checks on all three IDA versions | Next |
+| **v0.2 · Daily workflow** | Settings and syscall selection in IDA; runtime checks on all three IDA versions | UI implemented / review; more runtimes pending |
 | **Later · More kernel patterns** | Additional instructions and targeted simplifications | Planned |
 
 ## v0.1 · Implemented / review
@@ -28,8 +28,8 @@ See [validation](docs/src/validation.md) for what was actually run and what rema
 
 ## v0.2 · Daily workflow
 
-- [ ] **Settings dialog and persistent toggles** (#383). Expose supported options without editing database nodes by hand.
-- [ ] **Set syscall API / Set Windows version menus** (#389). Connect explicit named maps and presets to the IDA interface; keep servicing-revision differences visible.
+- [x] **Settings dialog and persistent toggles** (#383), implemented / review. Per-database component and log controls, cache refresh, and save/reopen/isolation checks; native Alt+F8 dialog checked on IDA 9.3.
+- [x] **Set syscall API / Set Windows version menus** (#389), implemented / review. Explicit maps, API overrides, presets and DLL import; native selection and the non-call focus crash reproducer checked on IDA 9.3.
 - [ ] **IDA 9.4 and 9.5 runtime checks** (#412). Repeat the licensed decompilation suites and inspect output on each exact version before extending the runtime support claim.
 
 ## Later · More kernel patterns

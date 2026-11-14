@@ -58,6 +58,7 @@ extern "C" bool ntrays_lift( void* state, void* builder, uint32 insn_kind );
 // 2 `global(ea) & value`, 3 call statement to `ea` (removed with its setup).
 extern "C" bool ntrays_fold( void* state, uint32 site, uint64 ea, uint64 value );
 extern "C" void ntrays_names_changed( void* state );
+extern "C" bool ntrays_component_enabled( void* state, uint32 component );
 
 // ---------------------------------------------------------------------------------------------------------------
 // Microcode builder: Rust refers to operands, types and calls by index into these arenas. Instructions are buffered
@@ -318,6 +319,16 @@ extern "C" uint64 ntrays_db_name_ea( const char* name )
 static netnode settings_node() { return netnode( "$ ntrays-rs", 0, true ); }
 extern "C" uint64 ntrays_db_setting( uint32 idx ) { try { return settings_node().altval( idx ); } catch ( ... ) { return 0; } }
 extern "C" void ntrays_db_set_setting( uint32 idx, uint64 value ) { try { settings_node().altset( idx, value ); } catch ( ... ) {} }
+extern "C" bool ntrays_db_settings_read( uint64* value )
+{
+    try { netnode node("$ ntrays-rs"); *value = node == BADNODE ? 0 : node.altval(3); return true; }
+    catch ( ... ) { return false; }
+}
+extern "C" bool ntrays_db_settings_write( uint64 value )
+{
+    try { netnode node = settings_node(); return node.altset(3, value) && node.altval(3) == value; }
+    catch ( ... ) { return false; }
+}
 
 // Bytes from the database; returns how many were read.
 extern "C" size_t ntrays_get_bytes( uint64 ea, uint8* buf, size_t size )
@@ -437,6 +448,10 @@ struct dispatch_filter : microcode_filter_t
 	{
 		if ( !kind_of[ cg.insn.itype ] )
 			return false;
+        const uint32 component = cg.insn.itype == NN_syscall
+            || (cg.insn.itype == NN_int && cg.insn.ops[0].value == 0x2e) ? 1
+            : cg.insn.itype == NN_nop ? 4 : 0;
+        if ( !ntrays_component_enabled(state, component) ) return false;
 		// `mov` is everywhere; only `mov reg, imm64` can be a paging relocation, so keep the rest out of Rust.
 		if ( cg.insn.itype == NN_mov )
 			return cg.insn.ops[ 0 ].type == o_reg && cg.insn.ops[ 1 ].type == o_imm && cg.insn.ops[ 1 ].dtype == dt_qword;
@@ -492,6 +507,7 @@ struct dispatch_optinsn : optinsn_t
 	explicit dispatch_optinsn( void* s ) : state( s ) {}
 	int idaapi func( mblock_t* blk, minsn_t* ins, int ) override
 	{
+		if ( !ntrays_component_enabled(state, 2) ) return 0;
 		if ( !is_mcode_jcond( ins->opcode ) )
 			return 0;
 		fold_visitor v( state );
@@ -510,6 +526,7 @@ struct dispatch_optblock : optblock_t
 	explicit dispatch_optblock( void* s ) : state( s ) {}
 	int idaapi func( mblock_t* blk ) override
 	{
+		if ( !ntrays_component_enabled(state, 2) ) return 0;
 		int changes = 0;
 		for ( minsn_t* ins = blk->head; ins; ins = ins->next )
 		{
@@ -534,7 +551,6 @@ struct dispatch_optblock : optblock_t
 // 0x7FFE0000): the original always created both, and the user one at 0x7FFE0000 has no room to move down, which
 // made Rebase Program fail on ntoskrnl (upstream issue 3). The segment is fixed in memory, so it is removed before
 // a rebase and put back at its address afterwards.
-static bool kuser_wanted = false;
 static const char* kuser_seg_name() { return inf_is_kernel_mode() ? ".kkuser" : ".ukuser"; }
 static ea_t kuser_ea() { return inf_is_kernel_mode() ? 0xFFFFF78000000000ull : 0x7FFE0000ull; }
 
@@ -545,7 +561,6 @@ static void drop_kuser()
 }
 static void ensure_kuser()
 {
-	if ( !kuser_wanted ) return;
 	const ea_t ea = kuser_ea();
 	segment_t* s = get_segm_by_name( kuser_seg_name() );
 	if ( s && s->start_ea == ea ) return;
@@ -557,9 +572,10 @@ static void ensure_kuser()
 	if ( t.get_named_type( get_idati(), "_KUSER_SHARED_DATA" ) )
 		create_struct( ea, t.get_size(), t.get_tid(), true );
 }
-extern "C" void ntrays_db_enable_kuser()
+extern "C" void ntrays_db_set_kuser_wanted(bool enabled)
 {
-	try { kuser_wanted = true; ensure_kuser(); } catch ( ... ) {}
+    // Existing mappings remain database data when disabled; only future creation is gated.
+    try { if ( enabled ) ensure_kuser(); } catch ( ... ) {}
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -569,7 +585,13 @@ extern "C" void ntrays_db_enable_kuser()
 static std::vector<std::pair<qstring, qstring>> parent_type_names;
 extern "C" void ntrays_add_parent_type( const char* child, const char* parent )
 {
-	try { parent_type_names.emplace_back( child, parent ); } catch ( ... ) {}
+	try
+    {
+        for ( const auto& pair : parent_type_names )
+            if ( pair.first == child && pair.second == parent ) return;
+        parent_type_names.emplace_back( child, parent );
+    }
+    catch ( ... ) {}
 }
 static std::vector<std::pair<tinfo_t, tinfo_t>> parent_types()
 {
@@ -671,13 +693,36 @@ static void fix_kernel_exit_type()
 	catch ( ... ) {}
 }
 
-static ssize_t idaapi hexrays_events( void*, hexrays_event_t event, va_list va )
+extern "C" void ntrays_db_apply_kernel_exit_type()
+{
+    fix_kernel_exit_type();
+}
+
+#include "settings_ui.hpp"
+#include "syscall_ui.hpp"
+
+struct ntrays_event_context
+{
+    void* state;
+    syscall_actions* actions;
+};
+
+static ssize_t idaapi hexrays_events( void* user_data, hexrays_event_t event, va_list va )
 {
 	try
 	{
-		if ( event == hxe_microcode )  // also handles names arriving from PDB after plugin initialization
+        auto* context = static_cast<ntrays_event_context*>(user_data);
+        void* state = context->state;
+		if ( event == hxe_populating_popup )
+        {
+            TWidget* widget = va_arg(va, TWidget*);
+            TPopupMenu* popup = va_arg(va, TPopupMenu*);
+            vdui_t* vu = va_arg(va, vdui_t*);
+            context->actions->popup(widget, popup, vu);
+        }
+		else if ( event == hxe_microcode && ntrays_component_enabled(state, 3) )  // also handles late PDB names
 			fix_kernel_exit_type();
-		else if ( event == hxe_maturity )
+		else if ( event == hxe_maturity && ntrays_component_enabled(state, 3) )
 		{
 			cfunc_t* cf = va_arg( va, cfunc_t* );
 			if ( ctree_maturity_t( va_arg( va, int ) ) == CMAT_ZERO )
@@ -698,18 +743,34 @@ struct idb_listener : event_listener_t
 		if ( code == idb_event::renamed )
 			ntrays_names_changed( state );
 		else if ( code == idb_event::allsegs_moved )
-			ensure_kuser();
+        {
+            ntrays_names_changed(state);
+            if ( ntrays_component_enabled(state, 5) || get_segm_by_name(kuser_seg_name()) ) ensure_kuser();
+        }
 		return 0;
 	}
 };
 struct ui_listener : event_listener_t
 {
+    void* state;
+    bool rebase_mapping = false;
+    explicit ui_listener(void* s) : state(s) {}
 	ssize_t idaapi on_event( ssize_t code, va_list va ) override
 	{
 		if ( code != ui_preprocess_action && code != ui_postprocess_action ) return 0;
 		const char* action = va_arg( va, const char* );
-		if ( !kuser_wanted || !action || strcmp( action, "RebaseProgram" ) != 0 ) return 0;
-		if ( code == ui_preprocess_action ) drop_kuser(); else ensure_kuser();
+		if ( !action || strcmp( action, "RebaseProgram" ) != 0 ) return 0;
+        if ( code == ui_preprocess_action )
+        {
+            // Preserve a mapping already in the IDB even when future mapping creation is disabled.
+            rebase_mapping = get_segm_by_name(kuser_seg_name()) != nullptr;
+            if ( rebase_mapping ) drop_kuser();
+        }
+        else if ( rebase_mapping || ntrays_component_enabled(state, 5) )
+        {
+            ensure_kuser();
+            rebase_mapping = false;
+        }
 		return 0;
 	}
 };
@@ -724,26 +785,28 @@ struct ntrays_plugmod : plugmod_t
 	dispatch_optblock optblock;
 	idb_listener names;
 	ui_listener ui;
+    std::unique_ptr<syscall_actions> syscalls_ui;
+    ntrays_event_context events;
 
-	explicit ntrays_plugmod( void* s ) : state( s ), filter( s ), optinsn( s ), optblock( s ), names( s )
+	explicit ntrays_plugmod( void* s ) : state( s ), filter( s ), optinsn( s ), optblock( s ), names( s ), ui( s ),
+        syscalls_ui(std::make_unique<syscall_actions>(s, this)), events{ s, syscalls_ui.get() }
 	{
 		hook_event_listener( HT_IDB, &names );  // owned by this plugmod
 		hook_event_listener( HT_UI, &ui );
 		install_microcode_filter( &filter, true );
 		install_optinsn_handler( &optinsn );
 		install_optblock_handler( &optblock );
-		install_hexrays_callback( hexrays_events, nullptr );
+		install_hexrays_callback( hexrays_events, &events );
 	}
 	~ntrays_plugmod() override
 	{
-		remove_hexrays_callback( hexrays_events, nullptr );
+		remove_hexrays_callback( hexrays_events, &events );
 		remove_optblock_handler( &optblock );
 		remove_optinsn_handler( &optinsn );
 		install_microcode_filter( &filter, false );
 		unhook_event_listener( HT_UI, &ui );
 		unhook_event_listener( HT_IDB, &names );
-		parent_type_names.clear();
-		kuser_wanted = false;
+        syscalls_ui.reset();
 		ntrays_term( state );
 		term_hexrays_plugin();
 	}
@@ -760,11 +823,10 @@ static plugmod_t* idaapi init()
 		term_hexrays_plugin();
 		return nullptr;
 	}
-	fix_kernel_exit_type();
 	return new ntrays_plugmod( state );
 }
 
 plugin_t PLUGIN = {
 	IDP_INTERFACE_VERSION, PLUGIN_MULTI, init, nullptr, nullptr,
-	"NtRays: Hex-Rays cleanup for Windows kernel code", nullptr, "NtRays", nullptr,
+	"NtRays: Hex-Rays cleanup for Windows kernel code", nullptr, "NtRays", "Alt-F8",
 };

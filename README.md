@@ -94,11 +94,11 @@ The DLL is `target/release/ntrays.dll`. For checked, packaged builds, use [`tool
 | [`tools/`](tools/) | Reproducible regression runners, fixture probes, generators and release packaging. |
 | [`docs/`](docs/) | mdBook documentation and the SVGs used in this README. |
 
-Syscall snapshots are selected explicitly; a Windows build family alone does not identify a servicing revision. The presets are available in the core API, while the selection menu is still planned. [Syscall maps](docs/src/syscalls.md) explains the distinction and the guarded migration of legacy IDBs.
+Syscall snapshots are selected explicitly; a Windows build family alone does not identify a servicing revision. The development checkout adds an **Alt+F8 settings dialog** and **Set syscall API / Set Windows version** actions in pseudocode. These controls are not included in the original `v0.1.0` preview. See [settings](docs/src/settings.md) and [syscall maps](docs/src/syscalls.md) for their behavior and guarded legacy migration.
 
 ## Next
 
-The [roadmap](ROADMAP.md) tracks the remaining settings and syscall menus, runtime checks on IDA 9.4/9.5, and further kernel patterns. [Issues](https://github.com/ilyaux/ntrays-rs/issues) are welcome with the IDA version, DLL hash and a minimal reproducer. The [contribution guide](CONTRIBUTING.md) covers building, testing and what belongs in a public report.
+The [roadmap](ROADMAP.md) tracks runtime checks on IDA 9.4/9.5 and further kernel patterns. [Issues](https://github.com/ilyaux/ntrays-rs/issues) are welcome with the IDA version, DLL hash and a minimal reproducer. The [contribution guide](CONTRIBUTING.md) covers building, testing and what belongs in a public report.
 
 ## License and credits
 
