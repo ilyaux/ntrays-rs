@@ -1,0 +1,249 @@
+{
+  "schema": 1,
+  "input": {
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "file_name": "DEMO-ONLY example.sys (hand-written, not the result of analyzing a driver)",
+    "image_base": "0xFFFFF80012340000",
+    "machine": "AMD64"
+  },
+  "frameworks": [
+    {
+      "framework": "wdm",
+      "evidence": [
+        {
+          "kind": "entry",
+          "status": "found_in_code",
+          "site": 20480,
+          "function": 20480,
+          "reason": "PE entry point; no framework import"
+        }
+      ]
+    }
+  ],
+  "entry_roots": [
+    {
+      "role": "pe_entry",
+      "target": {
+        "kind": "rva",
+        "rva": 20480
+      },
+      "evidence": [
+        {
+          "kind": "entry",
+          "status": "found_in_code",
+          "site": 20480,
+          "function": 20480,
+          "reason": "AddressOfEntryPoint"
+        }
+      ]
+    },
+    {
+      "role": "driver_entry",
+      "target": {
+        "kind": "rva",
+        "rva": 4096
+      },
+      "evidence": [
+        {
+          "kind": "call",
+          "status": "found_in_code",
+          "site": 20512,
+          "function": 20480,
+          "reason": "tail call from the entry wrapper with the DRIVER_OBJECT argument"
+        }
+      ]
+    }
+  ],
+  "callbacks": [
+    {
+      "role": "driver_unload",
+      "target": {
+        "kind": "rva",
+        "rva": 4608
+      },
+      "evidence": [
+        {
+          "kind": "store",
+          "status": "found_in_code",
+          "site": 4160,
+          "function": 4096,
+          "context": [
+            20480
+          ],
+          "layout": {
+            "source": "builtin",
+            "wdk": "10.0.26100",
+            "arch": "AMD64"
+          },
+          "reason": "stored to DriverObject->DriverUnload"
+        }
+      ]
+    }
+  ],
+  "irp": [
+    {
+      "major": 0,
+      "target": {
+        "kind": "rva",
+        "rva": 4864
+      },
+      "evidence": [
+        {
+          "kind": "store",
+          "status": "found_in_code",
+          "site": 4184,
+          "function": 4096,
+          "layout": {
+            "source": "builtin",
+            "wdk": "10.0.26100",
+            "arch": "AMD64"
+          },
+          "reason": "stored to DriverObject->MajorFunction[IRP_MJ_CREATE]"
+        }
+      ]
+    },
+    {
+      "major": 2,
+      "target": {
+        "kind": "rva",
+        "rva": 4864
+      },
+      "evidence": [
+        {
+          "kind": "store",
+          "status": "found_in_code",
+          "site": 4192,
+          "function": 4096,
+          "layout": {
+            "source": "builtin",
+            "wdk": "10.0.26100",
+            "arch": "AMD64"
+          },
+          "reason": "stored to DriverObject->MajorFunction[IRP_MJ_CLOSE] (same routine as IRP_MJ_CREATE)"
+        }
+      ]
+    },
+    {
+      "major": 14,
+      "target": {
+        "kind": "rva",
+        "rva": 5120
+      },
+      "evidence": [
+        {
+          "kind": "store",
+          "status": "found_in_code",
+          "site": 4200,
+          "function": 4096,
+          "layout": {
+            "source": "builtin",
+            "wdk": "10.0.26100",
+            "arch": "AMD64"
+          },
+          "reason": "stored to DriverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL]"
+        }
+      ]
+    }
+  ],
+  "ioctls": [
+    {
+      "code": 2236420,
+      "major": 14,
+      "dispatch": {
+        "kind": "rva",
+        "rva": 5120
+      },
+      "handler": {
+        "kind": "rva",
+        "rva": 5248
+      },
+      "evidence": [
+        {
+          "kind": "compare",
+          "status": "found_in_code",
+          "site": 5136,
+          "function": 5120,
+          "conditions": [
+            {
+              "site": 5130,
+              "text": "Irp->Tail.Overlay.CurrentStackLocation->MajorFunction == IRP_MJ_DEVICE_CONTROL"
+            }
+          ],
+          "reason": "IoControlCode == 0x222004"
+        }
+      ]
+    },
+    {
+      "code": 2236424,
+      "major": 14,
+      "dispatch": {
+        "kind": "rva",
+        "rva": 5120
+      },
+      "handler": {
+        "kind": "rva",
+        "rva": 5312
+      },
+      "evidence": [
+        {
+          "kind": "compare",
+          "status": "found_in_code",
+          "site": 5148,
+          "function": 5120,
+          "reason": "IoControlCode == 0x222008"
+        }
+      ]
+    },
+    {
+      "code": 2236428,
+      "major": 14,
+      "dispatch": {
+        "kind": "rva",
+        "rva": 5120
+      },
+      "evidence": [
+        {
+          "kind": "compare",
+          "status": "found_in_code",
+          "site": 5160,
+          "function": 5120,
+          "reason": "IoControlCode == 0x22200C; case body not resolved"
+        }
+      ]
+    }
+  ],
+  "devices": [
+    {
+      "name": "\\Device\\Demo",
+      "symbolic_links": [
+        "\\DosDevices\\Demo"
+      ],
+      "evidence": [
+        {
+          "kind": "call",
+          "status": "found_in_code",
+          "site": 4128,
+          "function": 4096,
+          "reason": "IoCreateDevice with a constant name"
+        },
+        {
+          "kind": "call",
+          "status": "found_in_code",
+          "site": 4144,
+          "function": 4096,
+          "reason": "IoCreateSymbolicLink with a constant name"
+        }
+      ]
+    }
+  ],
+  "coverage": {
+    "functions_analyzed": 7,
+    "cancelled": false,
+    "diagnostics": [
+      {
+        "severity": "info",
+        "message": "demo data: hand-written to show the format"
+      }
+    ]
+  }
+}

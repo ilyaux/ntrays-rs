@@ -16,6 +16,10 @@
 - [Maps and presets](syscalls.md)
 - [Migrate original NtRays state](migration.md)
 
+# Driver Intelligence
+
+- [Overview and contract (in development)](driver-intelligence.md)
+
 # Development
 
 - [Architecture](architecture.md)
